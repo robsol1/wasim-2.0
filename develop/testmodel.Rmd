@@ -1,0 +1,115 @@
+---
+title: "Test Model"
+output: html_document
+date: "2023-06-15"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r setup, include=FALSE}
+setwd("C:/Users/284481c/Documents/R/wasim1")
+source("fns.R")
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r }
+rundir='C:/Users/284481c/Documents/R/wasim1/develop/initial suite/debug'
+run_id=1
+sensid=0
+```
+
+## Testing run sequence and testing assumptions
+
+
+```{r }
+log <-
+  read_log(paste0(rundir, '/run_', sprintf("%03d", run_id), '_log.txt'))
+log <- log %>%
+  mutate(time = as.numeric(time)) %>%
+  arrange(item_Id, seq) %>%
+  group_by(item_Id) %>% 
+  mutate(
+    duration = lead(time) - time,
+    unique_block = paste0(item_type, "_", block, "_", activity)
+  ) %>% 
+  filter(!is.na(duration))
+```
+
+
+```{r }
+# test for skip_block delays
+cat("testing for skip block and end block durations >0\n")
+test1 <- if (nrow(log %>%
+                  arrange(item_Id, time) %>%
+                  filter((
+                    message == 'Block id is not next block so skip block' |
+                    message == 'End and go to next block'
+                  ) &
+                  duration > 0
+                  )) > 0) {
+  cat("There are skip block or end block messages with >0 time\n")
+} else {
+  cat("passed skip block and end block tests\n")
+}
+
+cat("Removing skip block and endblock messages\n")
+
+use_log <- log %>% 
+  filter(message != "Block id is not next block so skip block") %>% 
+  filter(message != "End and go to next block") %>% 
+  filter(!is.na(duration))
+
+```
+
+
+```{r }
+# reflect durations in all blocks
+  
+
+block_sequence <- use_log %>% 
+  arrange(item_Id,time) %>% 
+  group_by(item_Id) %>% 
+  mutate(
+    next_unique_block =lead(unique_block),
+    newblock=ifelse(lag(next_unique_block)!=lag(unique_block),1,0),
+    newblock=ifelse(is.na(newblock),0,newblock))
+
+block_sequence <- block_sequence %>% 
+    mutate(stepid= cumsum(newblock))
+steps <- block_sequence %>% 
+  group_by(item_Id,stepid) %>% 
+  summarise(duration=sum(duration))
+block_sequence <- block_sequence %>% 
+  filter(newblock==1) %>% 
+  select(-duration)
+block_sequence <- left_join(block_sequence,steps)
+block_durations <- block_sequence %>% 
+  group_by(item_Id,unique_block) %>% 
+  summarise(events=n(),avg_duration=round(mean(duration,2)),
+            p50=round(quantile(duration,prob=.50),2)) %>% 
+  filter(p50>0) 
+rm(steps) 
+datatable(block_durations)
+
+```
+
+
+```{r }
+attributes <-
+  read_csv(paste0(
+    rundir,
+    "/attributes_sens_",
+    sprintf("%03d", sensid),
+    "_run_",
+    sprintf("%03d", run_id),
+    ".csv"
+  ))
+```
