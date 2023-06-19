@@ -416,6 +416,7 @@ mod_df <- create_close_trj(modelname,mod_df,item,activity="End_truck_traj_and_re
 code <- join_code(mod_df)
 path <- paste0(modelname,"/",modelname,"_code.R")
 save_text_to_file(code,path)
+t
 
 source(path)
 

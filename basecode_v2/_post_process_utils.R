@@ -57,9 +57,12 @@ get_stock_trend <- function(df=attributes){
 
 ## Plotting fns
 
-plot_blocks <- function(df,
+plot_blocks <- function(df,filename=NULL,
                         textsize = 0.3,
-                        arrowsize = 0.3) {
+                        arrowsize = 0.3,
+                        height=11,
+                        width=16
+                        ) {
   txtwidth = 15
   distinct_mod_df <- mod_df %>%
     filter(next_trj_step != 0)
@@ -167,6 +170,23 @@ plot_blocks <- function(df,
     )
   vnodes <- left_join(df, t)
   V(network)$color = vnodes$node_colour
+  if(!is.null(filename)){
+    pdf(filename,width=16,height=11)
+    plot(network)
+    dev.off()
+  }
   plot(network)
-  
+
 }
+
+plot_trajectory <- function(trj,height=3000,filename=NULL){
+  get_palette <- scales::brewer_pal(type = "qual", palette = 1)
+  plot <- plot(trj, fill = get_palette,height=3000)
+  if(!is.null(filename)){
+    htmltools::save_html(plot, file = paste0(filename,".html"))
+  }
+  print(plot)
+  plot
+}
+
+
