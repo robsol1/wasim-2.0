@@ -514,7 +514,7 @@ save_results <- function(modelname,
   varlist <- get_mod_vars(df = df)
   
   
-  protosave(
+  varlist <- protosave(
     df = varlist,
     modelname = modelname,
     scenario_desc = scenario_desc,

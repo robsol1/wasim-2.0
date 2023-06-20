@@ -1,48 +1,57 @@
 source("fns.R")
 source("develop/_add_special_blocks.R")
-thisseed=2
-modelname="develop"
-loglevel=1
 
+modelname="develop"
+inputs <- read.csv(paste0(scen_dir,"/inputs.csv"))
+seq=1
+
+loglevel <- inputs$loglevel[seq]
+thisseed <- inputs$seed[seq]
 ##############################################
 #Assign Variables
 #############################################
 ## stockpiles
 
-drawpoint_stocks_max = 9999999
-stope_stocks_max =1000
-hoist_stocks_max = 9999999
 pilenames=c('drawpoint','stope_stock','hoist_stock')
-maxstocks=c(drawpoint_stocks_max,stope_stocks_max,hoist_stocks_max) 
-initstocks=c(drawpoint_stocks_max,stope_stocks_max/2,0)
-access_limit=c(1,1,1) # number of activities that can operate on pile at any one time
+maxstocks = c(
+  inputs$drawpoint_max_stock[seq],
+  inputs$stope_stock_max_stock[seq],
+  inputs$hoist_stock_max_stock[seq]
+)
+initstocks = c(
+  inputs$drawpoint_init_stock[seq],
+  inputs$stope_stock_init_stock[seq],
+  inputs$hoist_stock_init_stock[seq]
+)
+access_limit=c(inputs$drawpoint_access_limit[seq],
+               inputs$stope_stock_access_limit[seq],
+               inputs$hoist_stock_access_limit[seq]) # number of activities that can operate on pile at any one time
 
 
 ## Truck Inputs
-n_trucks=1
-
-truck_mttr_txt = 'function() max(1, rnorm(1, 3600, 360))'
-truck_mtbf_txt = 'function() max(1, rexp(1, rate = 1/(24*3600)))'
-truck_travel_empty_delay_txt= 'function() max(1, rnorm(1, 1800, 180))'
-truck_travel_full_delay_txt= 'function() max(1, rnorm(1, 2400, 240))'
-truck_dumps_to_hoist_delay_txt= 'function() max(1, rnorm(1, 90, 9))'
-
+n_trucks=inputs$n_trucks[seq]
+truck_mttr_txt = inputs$truck_mttr_code[seq]
+truck_mtbf_txt = inputs$truck_mtbf_code[seq]
+truck_travel_empty_delay_txt = inputs$truck_travel_empty_delay[seq]
+truck_travel_full_delay_txt  = inputs$truck_travel_full_delay[seq]
+truck_dumps_to_hoist_delay_txt = inputs$truck_dumps_to_hoist_delay[seq]
 ## LHD Inputs
-n_lhd=1
-lhd_mttr_txt = 'function() max(1, rnorm(1, 3600, 360))'
-lhd_mtbf_txt = 'function() max(1, rexp(1, rate = 1/(1*3600)))'
-lhd_travel_empty_delay_txt= 'function() max(1, rnorm(1, 180, 18))'
-lhd_loads_from_drawpoint_Delay_txt='function() max(1, rnorm(1, 120, 18))'
-lhd_loads_truck_Delay_txt='function() max(1, rnorm(1, 120, 18))'
-lhd_travel_full_delay_txt= 'function() max(1, rnorm(1, 200, 5))'
-lhd_dumps_to_stope_stock_delay_txt='function() max(1, rnorm(1, 60, 18))'
+
+n_lhds=inputs$n_lhds[seq]
+lhd_mttr_txt=inputs$lhd_mttr_code[seq]
+lhd_mtbf_txt=inputs$lhd_mtbf_code[seq]
+lhd_travel_empty_delay_txt= inputs$lhd_travel_empty_delay[seq]
+lhd_loads_from_drawpoint_Delay_txt=inputs$lhd_loads_from_drawpoint_Delay[seq]
+lhd_loads_truck_Delay_txt=inputs$lhd_loads_truck_Delay[seq]
+lhd_travel_full_delay_txt= inputs$lhd_travel_full_delay[seq]
+lhd_dumps_to_stope_stock_delay_txt=inputs$lhd_dumps_to_stope_stock_delay[seq]
 
 # LOading Inputs
-avg_lhd_Bucket_size_txt=21
-truck_passes=3
 
+
+avg_lhd_Bucket_size_txt=inputs$lhd_unit_capacity[seq]
 ## Derived inputs
-truck_unit_capacity_txt=avg_lhd_Bucket_size_txt*truck_passes
+truck_unit_capacity_txt=inputs$truck_unit_capacity[seq]
 
 ## Schedule Block
 
@@ -76,7 +85,7 @@ mod_df <- add_trajectory_to_model(
   mod_df = mod_df,
   item = item,
   activity = 'start_lhd_trj',
-  n_items = n_lhd,
+  n_items = n_lhds,
   item_unit_capacity = avg_lhd_Bucket_size_txt,
   item_mttr_txt = lhd_mttr_txt,
   item_mtbf_txt = lhd_mtbf_txt
@@ -337,9 +346,9 @@ mod_df <- add_trajectory_to_model(modelname=modelname,
                                   item = item,
                                   activity ='start_truck_trj',
                                   n_items = n_trucks,
-                                  item_unit_capacity = avg_lhd_Bucket_size_txt,
-                                  item_mttr_txt =lhd_mttr_txt,
-                                  item_mtbf_txt =lhd_mtbf_txt)
+                                  item_unit_capacity = truck_unit_capacity_txt,
+                                  item_mttr_txt =truck_mttr_txt,
+                                  item_mtbf_txt =truck_mtbf_txt)
 
 mod_df <- add_send_signal(
   modelname = modelname,
@@ -392,11 +401,11 @@ mod_df <- add_activity_with_breakdown(modelname=modelname,
 mod_df <- add_getorput_activity_delay_from_atts(modelname=modelname,
                                                 mod_df=mod_df,
                                                 item=item,
-                                                activity = 'dump_to_stope_stocks',
+                                                activity = 'truck_dumps_to_hoist',
                                                 trj_step = -1,
                                                 next_trj_step=-1,
                                                 TUM_text = 's_working',
-                                                delay_att_name = 'truck_dumps_to_hoist_delay_txt',
+                                                delay_att_name = 'truck_dumps_to_hoist_delay',
                                                 unit_size_att = 'truck_unit_capacity',
                                                 stockpile='stope_stock',
                                                 getorput = 'put',
@@ -416,7 +425,7 @@ mod_df <- create_close_trj(modelname,mod_df,item,activity="End_truck_traj_and_re
 code <- join_code(mod_df)
 path <- paste0(modelname,"/",modelname,"_code.R")
 save_text_to_file(code,path)
-t
+
 
 source(path)
 

@@ -30,6 +30,5 @@ run_model(modelname=modelname,
            loglevel=loglevel,
            verbose=verbose)
 
-sink()
-
+plot_blocks(mod_df,paste0(rundir,"/flowchart.pdf"))
 

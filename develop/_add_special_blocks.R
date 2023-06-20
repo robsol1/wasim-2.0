@@ -136,7 +136,9 @@ add_item_loaded_by_item <-
     )
   
   var_txt <- ""
-  env_txt <- ""
+  env_txt = paste0("env <-  env  %>%
+  add_global('",queue_name,"',0)
+                   ")
   mod_df <- add_code_row(
     modelname=modelname,
     modeldf=mod_df,

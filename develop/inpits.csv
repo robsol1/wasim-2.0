@@ -1,0 +1,6 @@
+"seed","drawpoint_max_stock","drawpoint_access_limit","stope_stock_max_stock","stope_stock_access_limit","hoist_stock_max_stock","hoist_stock_access_limit","lhd_unit_capacity","lhd_mttr_code","lhd_mtbf_code","truck_unit_capacity","truck_mttr_code","truck_mtbf_code"
+"2","9999999","1","1000","1","9999999","1","21","function () 
+max(1, rnorm(1, 3600, 360))","function () 
+max(1, rexp(1, rate = 1/(1 * 3600)))","21","function () 
+max(1, rnorm(1, 3600, 360))","function () 
+max(1, rexp(1, rate = 1/(1 * 3600)))"
