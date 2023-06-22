@@ -54,7 +54,7 @@ rsconnect/
 *.html
 /develop/*.txt
 /develop/*_code.R
-/develop/initial suite/
+
 wasim-2.0.rproj
 # 
 lib/
