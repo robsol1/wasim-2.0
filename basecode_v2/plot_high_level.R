@@ -1,5 +1,4 @@
-source("fns.R")
-library(igraph)
+
 txtwidth=15
 distinct_mod_df <- mod_df %>% 
   filter(next_trj_step!=0)
@@ -91,6 +90,7 @@ E(network)$label.cex = textsize
 E(network)$arrow.size=0.3
 E(network)$curved=TRUE
 V(network)$label.cex = textsize
+V(network)$shape="crectangle"
 df <- data.frame(activity=names(V(network)))
 t <- dist_nodes %>% group_by(activity) %>% summarise(node_colour=max(node_colour)) %>% 
   mutate(node_colour=ifelse(node_colour==1,"white",ifelse(node_colour==2,"pink","red")),

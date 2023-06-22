@@ -1,9 +1,12 @@
 source("fns.R")
-source("develop/_add_special_blocks.R")
-
 modelname="develop"
-inputs <- read.csv(paste0(scen_dir,"/inputs.csv"))
-seq=1
+scenario_desc='initial suite'
+model_path <- paste0(modelname,"/")
+scen_dir <- paste0(model_path,scenario_desc,"/")
+source(paste0(modelname,"/_add_special_blocks.R"))
+source(paste0(modelname,"/_sched_code.R"))
+inputs <- read_excel(paste0(scen_dir,"inputs.xlsx"))
+seq=2
 
 loglevel <- inputs$loglevel[seq]
 thisseed <- inputs$seed[seq]
@@ -12,18 +15,18 @@ thisseed <- inputs$seed[seq]
 #############################################
 ## stockpiles
 
-pilenames=c('drawpoint','stope_stock','hoist_stock')
+pilenames=c('drawpoint_stock','stope_stock','hoist_stock')
 maxstocks = c(
-  inputs$drawpoint_max_stock[seq],
+  inputs$drawpoint_stock_max_stock[seq],
   inputs$stope_stock_max_stock[seq],
   inputs$hoist_stock_max_stock[seq]
 )
 initstocks = c(
-  inputs$drawpoint_init_stock[seq],
+  inputs$drawpoint_stock_init_stock[seq],
   inputs$stope_stock_init_stock[seq],
   inputs$hoist_stock_init_stock[seq]
 )
-access_limit=c(inputs$drawpoint_access_limit[seq],
+access_limit=c(inputs$drawpoint_stock_access_limit[seq],
                inputs$stope_stock_access_limit[seq],
                inputs$hoist_stock_access_limit[seq]) # number of activities that can operate on pile at any one time
 
@@ -46,7 +49,7 @@ lhd_loads_truck_Delay_txt=inputs$lhd_loads_truck_Delay[seq]
 lhd_travel_full_delay_txt= inputs$lhd_travel_full_delay[seq]
 lhd_dumps_to_stope_stock_delay_txt=inputs$lhd_dumps_to_stope_stock_delay[seq]
 
-# LOading Inputs
+# Loading Inputs
 
 
 avg_lhd_Bucket_size_txt=inputs$lhd_unit_capacity[seq]

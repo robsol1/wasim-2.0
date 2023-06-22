@@ -40,19 +40,19 @@ assign_LHD_to_Stockpile <- function(sched_name,task,taskid) {
 }
 assign_lhd_2_drawpoint <- function(sched_name,task,taskid,stope_stock){
   ret <- -1
-  sched_log(sched_name,task,taskid,paste0("stope_stocks_max =", stope_stocks_max, "\n"))
+  sched_log(sched_name,task,taskid,paste0("stope_stock_max_stock =", stope_stock_max_stock, "\n"))
   sched_log(sched_name,task,taskid,paste0("avg_lhd_Bucket_size_txt =", avg_lhd_Bucket_size_txt, "\n"))
-  drawpoint_stock <- r_get_global(sched_name,task,taskid,'drawpoint_stocks_val')
+  drawpoint_stock <- r_get_global(sched_name,task,taskid,'drawpoint_stock_stocks_val')
   commited_drawpoint_stock <-
-    r_get_global(sched_name,task,taskid,'drawpoint_stocks_commited')
+    r_get_global(sched_name,task,taskid,'drawpoint_stock_stocks_commited')
   committed_stope_stock <-
     r_get_global(sched_name,task,taskid,'stope_stock_stocks_commited')
-  if (stope_stock + committed_stope_stock + avg_lhd_Bucket_size_txt > stope_stocks_max) {
+  if (stope_stock + committed_stope_stock + avg_lhd_Bucket_size_txt > stope_stock_max_stock) {
     ret = 1 #s_wait_downstream_stock
   } else if (drawpoint_stock + commited_drawpoint_stock < avg_lhd_Bucket_size_txt) {
     ret = 2 #s_wait_upstream_stock
   } else {
-    ret = 5 # succede in assigning task to LHD
+    ret = 5 # succeede in assigning task to LHD
   }
   ret
 }
@@ -100,14 +100,14 @@ assign_LHD_task <- function(sched_name, task, taskid) {
     sched_log(sched_name,task,taskid,paste0("can access pile so look for task \n"))
     stope_stock <- 
       r_get_global(sched_name,task,taskid,'stope_stock_stocks_val')
-    sched_log(sched_name,task,taskid,paste0("stope_stocks_max =", stope_stocks_max, "\n"))
+    sched_log(sched_name,task,taskid,paste0("stope_stock_max_stock =", stope_stock_max_stock, "\n"))
     # if (simmer::now(env) < 100) {
     #   truckwaiting = 0
     # } else {
       truckwaiting <-
         r_get_global(sched_name, task, taskid, 'trucks_waiting_loader')
     # }
-    if (stope_stock > 0.5 * stope_stocks_max & truckwaiting > 0) {
+    if (stope_stock > 0.5 * stope_stock_max_stock & truckwaiting > 0) {
       sched_log(sched_name,task,taskid,paste0("stope stocks > half full so prioritise truck \n"))
       ret <- assign_LHD_to_truck(sched_name, task, taskid,stope_stock,truckwaiting)
       if (ret < 0) { # failed to assign truck so try to drawpoint

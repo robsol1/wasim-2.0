@@ -157,6 +157,7 @@ plot_blocks <- function(df,filename=NULL,
   E(network)$arrow.size = arrowsize
   E(network)$curved = TRUE
   V(network)$label.cex = textsize
+  V(network)$shape="crectangle"
   df <- data.frame(activity = names(V(network)))
   t <-
     dist_nodes %>% group_by(activity) %>% summarise(node_colour = max(node_colour)) %>%

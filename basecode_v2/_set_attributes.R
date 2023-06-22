@@ -27,7 +27,7 @@ translate_att_modecode <- function(mod_code){
 }
 
 
-set_generic_attributes <- function(trj_step,to_name,from_name,mod_code="",from_type,to_type){
+set_generic_attributes <- function(item,activity,trj_step,to_name,from_name,mod_code="",from_type,to_type){
   ret <- translate_att_modecode(mod_code)
   pref <- ret$prefix
   mod_code=ret$mod_code
@@ -50,17 +50,17 @@ set_generic_attributes <- function(trj_step,to_name,from_name,mod_code="",from_t
   } else {
     print("invalid to code when setting attribute")
   }
-  code <- robs_log(trj_step,paste0("setting attribute ",to_name," from ",from_name))
+  code <- robs_log(item,activity,trj_step,paste0("setting attribute ",to_name," from ",from_name))
   code <- paste0(code,totext,to_name,fun,pref,fromtext,mod_code,")")
 
     
 }
 
-set_multiple_attributes <- function(trj_step,to_name,from_name,mod_code,from_type,to_type){
+set_multiple_attributes <- function(item,activity,trj_step,to_name,from_name,mod_code,from_type,to_type){
   code <- "
  "
   for (i in 1:length(to_type)) {
-    code <- paste0(code,set_generic_attributes(trj_step,to_name[i],from_name[i],mod_code[i],from_type[i],to_type[i])," %>% \n ")
+    code <- paste0(code,set_generic_attributes(item,activity,trj_step,to_name[i],from_name[i],mod_code[i],from_type[i],to_type[i])," %>% \n ")
   }
   code <- substring(code,1,nchar(code)-6)
 }
@@ -80,13 +80,13 @@ add_set_multiple_attributes <- function(modelname,
   next_trj_step = check_next_trj_step(next_trj_step = next_trj_step, trj_step = trj_step,relative = relative)
   
   code <-
-    set_multiple_attributes(trj_step,to_name, from_name, mod_code ,from_type,to_type)
+    set_multiple_attributes(item,activity,trj_step,to_name, from_name, mod_code ,from_type,to_type)
   
   trj_txt <-
     paste0(
-      start_code(trj_step = trj_step, next_trj_step = next_trj_step),
+      start_code(item,activity,trj_step = trj_step, next_trj_step = next_trj_step),
       code,
-      end_code(trj_step = trj_step)
+      end_code(item,activity,trj_step = trj_step)
     )
   var_txt <- ""
   env_txt <- ""
