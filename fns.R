@@ -11,16 +11,17 @@ library(data.table)
 library(ggplot2)
 library(stringr)
 library(igraph)
-
+library(readxl)
 # load up the code to add specific activities to trajectories.
 
 basecode <- 'basecode_v2'
 source(paste0(basecode,"/build_fns.r"))
-source(paste0(basecode,"/_add_activity_delay_from_atts.R"))
+source(paste0(basecode,"/_add_activity_delay_from_array.R"))
 source(paste0(basecode,"/_add_decision_branch.R"))
 source(paste0(basecode,"/_add_signals.R"))
 source(paste0(basecode,"/_post_process_utils.R"))
 source(paste0(basecode,"/_set_attributes.R"))
+source(paste0(basecode,"/_global_array_access.R"))
 
 
 # source(paste0(basecode,"/_activity_delay.R"))
@@ -46,12 +47,41 @@ s_wait_sec_eq <- 8
 
 huge=999999999
 tiny=0.00000001
-robs_log <- function(trj_step1,text,pipe=TRUE,level=1,tag="",ret=TRUE){
-  if(pipe){pipe <- ' %>% '} else {pipe <- ""}
-  if(tag != ""){tag <-paste0(",tag = '",tag,"'") }
-  if(ret){ ret <- '\n'} else {ret <- ""}
-  paste0("log_('item:activity:block_",trj_step1,":",text,"',level = ",level,tag,")",pipe,ret)
-}
+robs_log <-
+  function(item,
+           activity,
+           trj_step,
+           text,
+           pipe = TRUE,
+           level = 1,
+           tag = "",
+           ret = TRUE) {
+    if (pipe) {
+      pipe <- ' %>% '
+    } else {
+      pipe <- ""
+    }
+    if (tag != "") {
+      tag <- paste0(",tag = '", tag, "'")
+    }
+    if (ret) {
+      ret <- '\n'
+    } else {
+      ret <- ""
+    }
+    paste0(
+      "log_('",item,":",activity,":block_",
+      trj_step,
+      ":",
+      text,
+      "',level = ",
+      level,
+      tag,
+      ")",
+      pipe,
+      ret
+    )
+  }
 
 
 robs_log_global <-
@@ -98,63 +128,6 @@ trimrandom <-
         , huge)
   }
 
-
-
-build_stockpiles <-
-  function(modeldf,
-           pilenames,
-           maxstocks = NULL,
-           initstocks = NULL,
-           access_limit = c(1, 1, 1)) {
-    npiles <- length(pilenames)
-    if (is.null(maxstocks)) {
-      maxstocks <- rep(999999, npiles)
-    }
-    if (is.null(initstocks)) {
-      initstocks <- maxstocks / 2
-    }
-    
-    df <-
-      data.frame(pilename = pilenames,
-                 maxstocks = maxstocks,
-                 initstocks = initstocks) %>%
-      mutate(
-        modelname = modeldf$model[1],
-        item = '',
-        trj_step = 0,
-        signal_txt="",
-        signal_dir="",
-        decision_txt="",
-        next_trj_step = 0,
-        activity = '',
-        var_txt = paste0(pilename, '_max_stock <- ', maxstocks,"\n",pilename,"_access_limit <- ", access_limit,"\n"),
-        trj_txt = "",
-        env_txt = paste0("env <-  env  %>%
-  add_global('",pilename,"_stocks_val',",initstocks,") %>%
-  add_global('",pilename,"_stocks_commited',",0,") %>%
-  add_global('",pilename,"_current_activities',",0,") %>%
-  add_global('",pilename,"_access_limit', ",access_limit,")
-  \n")
-        
-      ) %>%
-      dplyr::select(-pilename, -maxstocks, -initstocks)
-    
-    modeldf = rbind(modeldf, df)
-    
-  }
-save_text_to_file <- function(text,fname) {
-  con <- file(
-    description = fname,
-    open = "w",
-    blocking = TRUE,
-    encoding = getOption("encoding"),
-    raw = FALSE,
-    method = getOption("url.method", "default")
-  )
-  writeLines(text, con = con)
-  close(con = con)
-}
-
 init_model <- function(model,
                        envname = "env",
                        level = 1) {
@@ -174,204 +147,364 @@ init_model <- function(model,
   
   
 }
-
-
-create_init_trj <- function() {
-  item_trj <- paste0(
-    "item_trj <- trajectory('item_trj') %>%\n\t ",
-    robs_log(1,'init trajectory'),
-    "\tset_global('item_count', 1, mod = '+') %>%\n",
-    "\tset_attribute('item_id', function() get_global(env, 'item_count')) %>% \n",
-    "\tset_attribute('item_ute_time', 0) %>%\n",
-    "\tset_attribute('item_next_bd', item_mtbf_code) %>%\n",
-   "\tset_attribute('item_next_block',2) %>% \n ",
-   "\t",robs_log(1,'end Init and start content',tag='item_rollback_to_start',pipe=FALSE)
-  )
+build_stockpiles <-
+  function(mod_df,
+           stockpile_df_name) {
+    
+    stockpile_vartext=paste0("
+",stockpile_df_name," <- ",stockpile_df_name," %>% 
+mutate(current_access_assigned=0,
+current_stocks=initstocks,
+committed=0)
+spnames <- names(",stockpile_df_name,")
+varpointer_spilenames <- which(spnames=='pilenames')
+varpointer_maxstocks <- which(spnames=='maxstocks')
+varpointer_initstocks <- which(spnames=='initstocks')
+varpointer_access_limit <- which(spnames=='access_limit')
+varpointer_current_access_assigned <- which(spnames=='current_access_assigned')
+varpointer_current_stocks <- which(spnames=='current_stocks')
+varpointer_committed <- which(spnames=='committed')
+")
+    df <- get(stockpile_df_name)
+    varpointer_spilenames <- which(names(df)=="pilenames")
+stockpile_names <- df[,varpointer_spilenames]
+stockpile_id_txt='
+'
+for(name in stockpile_names){
+  stockpile_id_txt <- paste0(stockpile_id_txt,name,'_id <- ',which(stockpile_names== name),'
+')
 }
 
 
-
-create_init_item_vars <- function(item_unit_capacity,item_mttr_txt,item_mtbf_txt){
-  item_vars <- paste0("item_unit_capacity <- ",item_unit_capacity,"\n",
-                      "item_mttr_code <- ",item_mttr_txt,"\n",
-                      "item_mtbf_code <- ",item_mtbf_txt,"\n")
-}
-
-create_init_item_env <- function(n_item) {
-  item_env <- paste0(
-    "env <- env %>%\n",
-    "\tadd_generator('item', trajectory = item_trj, at((1:",n_item,")), mon = 2)\n")
-}
-
-add_trajectory_to_model <-
-  function(modelname,
-           mod_df,
-           item,
-           activity='setup_trj',
-           n_items=1,
-           item_unit_capacity,
-           item_mttr_txt,
-           item_mtbf_txt) {
-    var_txt <- create_init_item_vars(item_unit_capacity,
-                                     item_mttr_txt,
-                                     item_mtbf_txt)
-    trj_txt <- create_init_trj()
-    env_txt = create_init_item_env(n_items)
-    trj_step = 0
-    item=item
-    mod_df=add_code_row(
-      modelname = modelname,
-      modeldf = mod_df,
-      item = item,
-      trj_step ,
-      next_trj_step=1,
-      signal_txt="",
-      signal_dir="",
-      decision_txt="",
-      activity=paste0(".initialise.") ,
-      var_txt="" ,
-      trj_txt="" ,
-      env_txt=""
-    )
-    add_code_row(
-      modelname = modelname,
-      modeldf = mod_df,
-      item = item,
-      trj_step=1 ,
-      next_trj_step=2,
-      signal_txt="",
-      signal_dir="",
-      decision_txt="",
-      activity =activity,
-      var_txt =var_txt,
-      trj_txt =trj_txt,
-      env_txt =env_txt
-    )
+stockpile_vartext=paste0(stockpile_vartext,stockpile_id_txt)
+      df <- data.frame(
+        modelname = mod_df$model[1],
+        item = '',
+        trj_step = 0,
+        signal_txt="",
+        signal_dir="",
+        decision_txt="",
+        next_trj_step = 0,
+        activity = 'build_stockpiles',
+        var_txt = stockpile_vartext,
+        trj_txt = "",
+        env_txt = "")
+    mod_df = rbind(mod_df, df)
   }
-create_close_trj <-
-  function(modelname, modeldf, item, activity = 'close_item_trajectory'
-  ){
-  trj_txt <-  "item_trj <- item_trj %>% 
-  set_attribute('item_next_block',2) %>% 
-  simmer::rollback(target = 'item_rollback_to_start')"
-  env_txt=""
-  trj_step <- length(which(modeldf$item == item))
-  var_txt=paste0("last_block_in_",item,"_trj=",trj_step)
-  
-  add_code_row(
-    modelname = modelname,
-    modeldf = modeldf,
-    item = item,
-    trj_step ,
-    next_trj_step=1,
+add_trajectory_to_model <-
+  function(mod_df, item,activity="init_trj", n_item, varnames, varlist) {
+    # Create list of variables
+    varlist <- as.character(varlist)
+    varlist[!str_detect(varlist, "function")] <-
+      paste0("function() ", varlist[!str_detect(varlist, "function")])
+    var_txt=''
+    for(i in 1:length(varnames)){
+      var_txt <- paste0(paste0(var_txt,varnames[i],"_code <- ",varlist[i],"\n"))
+    }
+    # build the item array
+    linetext=paste0("data.frame(\n",varnames[1],"= ",varnames[1],"_code()")
+    for(name in 2:length(varnames)){ 
+      linetext=paste0(linetext,",\n",varnames[name]," = ",varnames[name],"_code()")
+    }
+    linetext <- paste0(linetext,"\n)")
+    var_txt= paste0(var_txt,item,"_array <- ",linetext,"\n")
+    if(n_item>1){
+      for(i in 2:n_item){
+        var_txt=paste0(var_txt,item,"_array <- rbind(",item,"_array,\n",linetext,")\n")
+      }
+    }
+    var_txt <- paste0(var_txt,item,"_array <- ",item,"_array %>%
+mutate(",item,"_ute_time = 0,\n",item,"_next_bd =",item,"_mtbf,\n",item,"_total_throughput=0)\n")
+  ## generate var_pointers
+    ptr <- paste0('ptr_',varnames,' = ',1:length(varnames),collapse = '\n')
+    var_txt <- paste0(var_txt,ptr)
+
+    #environmentaL text
+    env_txt <- paste0(
+    "env <- env %>%
+  add_generator('item', trajectory = ",item,"_trj, at((1:",n_item,")), mon = 2)\n")
+  activity <- paste0(item,"_setup_trj")
+  trj_txt <- paste0(item,
+      "_trj <- trajectory('",item,"_trj') %>%\n\t ",
+      robs_log(item,activity,1,'init trajectory'),
+      "\tset_global('",item,"_count', 1, mod = '+') %>%\n",
+      "\tset_attribute('",item,"_id', function() get_global(env, '",item,"_count')) %>% \n",
+      # "\tset_attribute('",item,"_ute_time', 0) %>%\n",
+      # "\tset_attribute('",item,"_next_bd', ",item,"_mtbf_code) %>%\n",
+     "\tset_attribute('",item,"_next_block',2) %>% \n ",
+     "\t",robs_log(item,activity,1,'end Init and start content',tag='",item,"_rollback_to_start',pipe=FALSE))
+  trj_step <- 0
+  next_trjstep <- 1
+  df <- data.frame(
+    modelname = mod_df$model[1],
+    item = '',
+    trj_step = trj_step,
     signal_txt="",
     signal_dir="",
     decision_txt="",
-    activity ,
-    var_txt ,
-    trj_txt ,
-    env_txt
-  )
+    next_trj_step = next_trjstep,
+    activity = activity,
+    var_txt = var_txt,
+    trj_txt = trj_txt,
+    env_txt = env_txt)
+  mod_df = rbind(mod_df, df)
 }
 
-add_code_row <-
-  function(modelname,
-           modeldf,
-           item,
-           trj_step,
-           next_trj_step,
-           signal_txt="",
-           signal_dir="",
-           decision_txt="",
-           activity,
-           var_txt,
-           trj_txt,
-           env_txt,
-           stockpile = NULL,
-           secondary_unit_name = NULL) {
-    # sometimes next_trj_step is a vector so need to convert to a atomic character variable
-    if (length(next_trj_step) > 1) {
-      next_trj_step_txt <- next_trj_step[1]
-      for (i in 2:length(next_trj_step)) {
-        next_trj_step_txt <-
-          paste0(next_trj_step_txt, ",", next_trj_step[i])
-      }
-    } else {
-      next_trj_step_txt <- as.character(next_trj_step)
-    }
-    df = data.frame(
-      modelname = modelname,
-      item = item,
-      trj_step = trj_step,
-      next_trj_step = next_trj_step_txt,
-      signal_txt=signal_txt,
-      signal_dir=signal_dir,
-      decision_txt=decision_txt,
-      activity = activity,
-      var_txt = var_txt,
-      trj_txt = trj_txt,
-      env_txt = env_txt
-    )
-    df <- add_unique_vars(
-      df,
-      item = item,
-      activity = activity,
-      stockpile = stockpile,
-      secondary_unit_name = secondary_unit_name
-    )
-    if (df$trj_step < 0) {
-      df$trj_step <- length(which(modeldf$item == item)) + 1
-    }
-    model <- rbind(modeldf,
-                   df)
-  }
-add_unique_vars <- function(df,
-                            item = NULL,
-                            activity = NULL,
-                            stockpile=NULL,
-                            secondary_unit_name=NULL) {
-  
-  df$var_txt <- create_code_text(
-    text=df$var_txt,
-    item = item,
-    activity = activity,
-    stockpile = stockpile,
-    secondary_unit_name=secondary_unit_name
+# build_stockpiles_old <-
+#   function(modeldf,
+#            pilenames,
+#            maxstocks = NULL,
+#            initstocks = NULL,
+#            access_limit = c(1, 1, 1)) {
+#     npiles <- length(pilenames)
+#     if (is.null(maxstocks)) {
+#       maxstocks <- rep(999999, npiles)
+#     }
+#     if (is.null(initstocks)) {
+#       initstocks <- maxstocks / 2
+#     }
+#     
+#     df <-
+#       data.frame(pilename = pilenames,
+#                  maxstocks = maxstocks,
+#                  initstocks = initstocks) %>%
+#       mutate(
+#         modelname = modeldf$model[1],
+#         item = '',
+#         trj_step = 0,
+#         signal_txt="",
+#         signal_dir="",
+#         decision_txt="",
+#         next_trj_step = 0,
+#         activity = '',
+#         var_txt = paste0(pilename, '_max_stock <- ', maxstocks,"\n",pilename,"_access_limit <- ", access_limit,"\n"),
+#         trj_txt = "",
+#         env_txt = paste0("env <-  env  %>%
+#   add_global('",pilename,"_stocks_val',",initstocks,") %>%
+#   add_global('",pilename,"_stocks_commited',",0,") %>%
+#   add_global('",pilename,"_current_activities',",0,") %>%
+#   add_global('",pilename,"_access_limit', ",access_limit,")
+#   \n")
+#         
+#       ) %>%
+#       dplyr::select(-pilename, -maxstocks, -initstocks)
+#     
+#     modeldf = rbind(modeldf, df)
+#     
+#   }
+save_text_to_file <- function(text,fname) {
+  con <- file(
+    description = fname,
+    open = "w",
+    blocking = TRUE,
+    encoding = getOption("encoding"),
+    raw = FALSE,
+    method = getOption("url.method", "default")
   )
-  df$trj_txt <- create_code_text(
-    text=df$trj_txt,
-    item = item,
-    activity = activity,
-    stockpile = stockpile,
-    secondary_unit_name=secondary_unit_name
-  )
-  df$env_txt <- create_code_text(
-    text=df$env_txt,
-    item = item,
-    activity = activity,
-    stockpile = stockpile,
-    secondary_unit_name=secondary_unit_name
-  )
-  df
+  writeLines(text, con = con)
+  close(con = con)
 }
-create_code_text <-
-  function(text,
-           item = item,
-           activity = activity,
-           stockpile = stockpile,
-           secondary_unit_name
-  ) {
-    text <- fix(text, 'item', item)
-    text <- fix(text, 'activity', activity)
-    text <- fix(text, 'secondary_unit_name', secondary_unit_name)
-    stockpile <- fix(text, 'stockpile', stockpile)
-  }
-fix <- function(text, searchstring, repstring) {
-  if (!is.null(repstring)) {
-    text <- str_replace_all(text, searchstring, repstring)
-  }
-  text
-}
+
+
+
+
+# create_init_trj <- function() {
+#   item_trj <- paste0(
+#     "item_trj <- trajectory('item_trj') %>%\n\t ",
+#     robs_log(1,'init trajectory'),
+#     "\tset_global('item_count', 1, mod = '+') %>%\n",
+#     "\tset_attribute('item_id', function() get_global(env, 'item_count')) %>% \n",
+#     "\tset_attribute('item_ute_time', 0) %>%\n",
+#     "\tset_attribute('item_next_bd', item_mtbf_code) %>%\n",
+#    "\tset_attribute('item_next_block',2) %>% \n ",
+#    "\t",robs_log(1,'end Init and start content',tag='item_rollback_to_start',pipe=FALSE)
+#   )
+# }
+# 
+# 
+# 
+# create_init_item_vars <- function(item_unit_capacity,item_mttr_txt,item_mtbf_txt){
+#   item_vars <- paste0("item_unit_capacity <- ",item_unit_capacity,"\n",
+#                       "item_mttr_code <- ",item_mttr_txt,"\n",
+#                       "item_mtbf_code <- ",item_mtbf_txt,"\n")
+# }
+# 
+# create_init_item_env <- function(n_item) {
+#   item_env <- paste0(
+#     "env <- env %>%\n",
+#     "\tadd_generator('item', trajectory = item_trj, at((1:",n_item,")), mon = 2)\n")
+# }
+
+
+# add_trajectory_to_model_old <-
+#   function(modelname,
+#            mod_df,
+#            item,
+#            activity='setup_trj',
+#            n_items=1,
+#            item_unit_capacity,
+#            item_mttr_txt,
+#            item_mtbf_txt) {
+#     var_txt <- create_init_item_vars(item_unit_capacity,
+#                                      item_mttr_txt,
+#                                      item_mtbf_txt)
+#     trj_txt <- create_init_trj()
+#     env_txt = create_init_item_env(n_items)
+#     trj_step = 0
+#     item=item
+#     mod_df=add_code_row(
+#       modelname = modelname,
+#       modeldf = mod_df,
+#       item = item,
+#       trj_step ,
+#       next_trj_step=1,
+#       signal_txt="",
+#       signal_dir="",
+#       decision_txt="",
+#       activity=paste0(".initialise.") ,
+#       var_txt="" ,
+#       trj_txt="" ,
+#       env_txt=""
+#     )
+#     add_code_row(
+#       modelname = modelname,
+#       modeldf = mod_df,
+#       item = item,
+#       trj_step=1 ,
+#       next_trj_step=2,
+#       signal_txt="",
+#       signal_dir="",
+#       decision_txt="",
+#       activity =activity,
+#       var_txt =var_txt,
+#       trj_txt =trj_txt,
+#       env_txt =env_txt
+#     )
+#   }
+# create_close_trj <-
+#   function(modelname, modeldf, item, activity = 'close_item_trajectory'
+#   ){
+#   trj_txt <-  "item_trj <- item_trj %>% 
+#   set_attribute('item_next_block',2) %>% 
+#   simmer::rollback(target = 'item_rollback_to_start')"
+#   env_txt=""
+#   trj_step <- length(which(modeldf$item == item))
+#   var_txt=paste0("last_block_in_",item,"_trj=",trj_step)
+#   
+#   add_code_row(
+#     modelname = modelname,
+#     modeldf = modeldf,
+#     item = item,
+#     trj_step ,
+#     next_trj_step=1,
+#     signal_txt="",
+#     signal_dir="",
+#     decision_txt="",
+#     activity ,
+#     var_txt ,
+#     trj_txt ,
+#     env_txt
+#   )
+# }
+# 
+# add_code_row <-
+#   function(modelname,
+#            modeldf,
+#            item,
+#            trj_step,
+#            next_trj_step,
+#            signal_txt="",
+#            signal_dir="",
+#            decision_txt="",
+#            activity,
+#            var_txt,
+#            trj_txt,
+#            env_txt,
+#            stockpile = NULL,
+#            secondary_unit_name = NULL) {
+#     # sometimes next_trj_step is a vector so need to convert to a atomic character variable
+#     if (length(next_trj_step) > 1) {
+#       next_trj_step_txt <- next_trj_step[1]
+#       for (i in 2:length(next_trj_step)) {
+#         next_trj_step_txt <-
+#           paste0(next_trj_step_txt, ",", next_trj_step[i])
+#       }
+#     } else {
+#       next_trj_step_txt <- as.character(next_trj_step)
+#     }
+#     df = data.frame(
+#       modelname = modelname,
+#       item = item,
+#       trj_step = trj_step,
+#       next_trj_step = next_trj_step_txt,
+#       signal_txt=signal_txt,
+#       signal_dir=signal_dir,
+#       decision_txt=decision_txt,
+#       activity = activity,
+#       var_txt = var_txt,
+#       trj_txt = trj_txt,
+#       env_txt = env_txt
+#     )
+#     df <- add_unique_vars(
+#       df,
+#       item = item,
+#       activity = activity,
+#       stockpile = stockpile,
+#       secondary_unit_name = secondary_unit_name
+#     )
+#     if (df$trj_step < 0) {
+#       df$trj_step <- length(which(modeldf$item == item)) + 1
+#     }
+#     model <- rbind(modeldf,
+#                    df)
+#   }
+# add_unique_vars <- function(df,
+#                             item = NULL,
+#                             activity = NULL,
+#                             stockpile=NULL,
+#                             secondary_unit_name=NULL) {
+#   
+#   df$var_txt <- create_code_text(
+#     text=df$var_txt,
+#     item = item,
+#     activity = activity,
+#     stockpile = stockpile,
+#     secondary_unit_name=secondary_unit_name
+#   )
+#   df$trj_txt <- create_code_text(
+#     text=df$trj_txt,
+#     item = item,
+#     activity = activity,
+#     stockpile = stockpile,
+#     secondary_unit_name=secondary_unit_name
+#   )
+#   df$env_txt <- create_code_text(
+#     text=df$env_txt,
+#     item = item,
+#     activity = activity,
+#     stockpile = stockpile,
+#     secondary_unit_name=secondary_unit_name
+#   )
+#   df
+# }
+# create_code_text <-
+#   function(text,
+#            item = item,
+#            activity = activity,
+#            stockpile = stockpile,
+#            secondary_unit_name
+#   ) {
+#     text <- fix(text, 'item', item)
+#     text <- fix(text, 'activity', activity)
+#     text <- fix(text, 'secondary_unit_name', secondary_unit_name)
+#     stockpile <- fix(text, 'stockpile', stockpile)
+#   }
+# fix <- function(text, searchstring, repstring) {
+#   if (!is.null(repstring)) {
+#     text <- str_replace_all(text, searchstring, repstring)
+#   }
+#   text
+# }
 
 join_code <- function(mod_df){
   full_vars <- paste(sep = '\n',paste(mod_df$var_txt[mod_df$var_txt!=""], collapse = '\n'))
