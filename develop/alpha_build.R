@@ -64,23 +64,30 @@ mod_df <-
   add_trajectory_to_model(
     mod_df = mod_df,
     item = item,
-    activity="init_lhd_trj",
+    activity = "init_lhd_trj",
     n_item = n_lhds,
     varnames = names(vardf),
     varlist = vardf[seq, ]
   )
 
-
-
 mod_df <- add_activity_delay_from_array(
   mod_df=mod_df,
-  item,
+  item=item,
   activity = 'travel_empty',
   trj_step = -1,
   next_trj_step = -1,
   relative = FALSE,
+  breakdown =TRUE,
   TUM_text = 's_working'
 )
+
+mod_df <- create_close_trj(
+  item = item,
+  mod_df = mod_df,
+  trj_step = -1,
+  activity = 'close_item_trajectory'
+  )
+
 
 
 
@@ -88,9 +95,10 @@ mod_df <- add_activity_delay_from_array(
 code <- join_code(mod_df)
 path <- paste0(modelname,"/",modelname,"_code.R")
 save_text_to_file(code,path)
+rm(lhd_array)
 source(path)
 
 
-
-env <- env %>% run(1000)
-atts<- get_mon_attributes(env)
+# 
+# env <- env %>% run(60000)
+#  atts<- get_mon_attributes(env)

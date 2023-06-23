@@ -16,9 +16,9 @@
 send_signal <- function(signal_name,trj_step){
   Block_code <- paste0(
     "
-        ",robs_log(trj_step,paste0('sending signal ',signal_name),ret=FALSE,pipe=TRUE),"
+        ",robs_log(item,activity,trj_step,paste0('sending signal ',signal_name),ret=FALSE,pipe=TRUE),"
         send('",signal_name,"') %>% 
-        ",robs_log(trj_step,paste0('sent signal ',signal_name),ret=FALSE,pipe=FALSE),"
+        ",robs_log(item,activity,trj_step,paste0('sent signal ',signal_name),ret=FALSE,pipe=FALSE),"
         "
   )
 }
@@ -59,11 +59,11 @@ add_send_signal <- function(modelname,
 }    
 wait_signal <- function(signal_name,trj_step,wait_status_text){
   Block_code <- paste0("
-        ",robs_log(trj_step,paste0('waiting signal ',signal_name),ret=FALSE,pipe=TRUE),"
+        ",robs_log(item,activity,trj_step,paste0('waiting signal ',signal_name),ret=FALSE,pipe=TRUE),"
         set_attribute('local_item_activity_status', ",wait_status_text,") %>%
         trap('",signal_name,"') %>%
         wait() %>%
-        ",robs_log(trj_step,paste0('released from signal ;',signal_name),pipe=FALSE,ret=FALSE))
+        ",robs_log(item,activity,trj_step,paste0('released from signal ;',signal_name),pipe=FALSE,ret=FALSE))
 }
 add_wait_signal <- function(modelname,
                             mod_df,

@@ -179,7 +179,7 @@ for(name in stockpile_names){
 stockpile_vartext=paste0(stockpile_vartext,stockpile_id_txt)
       df <- data.frame(
         modelname = mod_df$model[1],
-        item = '',
+        item = "",
         trj_step = 0,
         signal_txt="",
         signal_dir="",
@@ -193,6 +193,12 @@ stockpile_vartext=paste0(stockpile_vartext,stockpile_id_txt)
   }
 add_trajectory_to_model <-
   function(mod_df, item,activity="init_trj", n_item, varnames, varlist) {
+    trj_step=0
+    next_trj_step=1
+    signal_txt=""
+    signal_dir=""
+    decision_txt=""
+    
     # Create list of variables
     varlist <- as.character(varlist)
     varlist[!str_detect(varlist, "function")] <-
@@ -213,11 +219,13 @@ add_trajectory_to_model <-
         var_txt=paste0(var_txt,item,"_array <- rbind(",item,"_array,\n",linetext,")\n")
       }
     }
-    var_txt <- paste0(var_txt,item,"_array <- ",item,"_array %>%
-mutate(",item,"_ute_time = 0,\n",item,"_next_bd =",item,"_mtbf,\n",item,"_total_throughput=0)\n")
+
   ## generate var_pointers
-    ptr <- paste0('ptr_',varnames,' = ',1:length(varnames),collapse = '\n')
-    var_txt <- paste0(var_txt,ptr)
+    add_names <- c('_ute_time','_next_bd')
+    add_names <- paste0(item,add_names)
+    item_vals <<- c(0,paste0(item,"_mtbf")) 
+    item_varnames <<- append(varnames,add_names)
+
 
     #environmentaL text
     env_txt <- paste0(
@@ -231,25 +239,64 @@ mutate(",item,"_ute_time = 0,\n",item,"_next_bd =",item,"_mtbf,\n",item,"_total_
       "\tset_attribute('",item,"_id', function() get_global(env, '",item,"_count')) %>% \n",
       # "\tset_attribute('",item,"_ute_time', 0) %>%\n",
       # "\tset_attribute('",item,"_next_bd', ",item,"_mtbf_code) %>%\n",
-     "\tset_attribute('",item,"_next_block',2) %>% \n ",
-     "\t",robs_log(item,activity,1,'end Init and start content',tag='",item,"_rollback_to_start',pipe=FALSE))
-  trj_step <- 0
-  next_trjstep <- 1
+     "\tset_attribute('",item,"_next_block',1) %>% \n ",
+     "\t",robs_log(item,activity,1,'end Init and start content',tag=paste0(item,"_rollback_to_start"),pipe=FALSE)
+  
+  )
   df <- data.frame(
     modelname = mod_df$model[1],
-    item = '',
+    item = item,
     trj_step = trj_step,
-    signal_txt="",
-    signal_dir="",
-    decision_txt="",
-    next_trj_step = next_trjstep,
+    signal_txt=signal_txt,
+    signal_dir=signal_dir,
+    decision_txt=decision_txt,
+    next_trj_step = next_trj_step,
     activity = activity,
     var_txt = var_txt,
     trj_txt = trj_txt,
     env_txt = env_txt)
   mod_df = rbind(mod_df, df)
 }
+create_close_trj <-
+  function(modelname, mod_df, trj_step=-1,item, activity = 'close_item_trajectory'){
+  print(activity)
+    trj_step = check_trj_step(item = item,
+                              trj_step = trj_step,
+                              mod_df = mod_df)
+  next_trj_step <- 1
+  signal_txt=""
+  signal_dir=""
+  decision_txt=""
+  trj_txt <-  paste0(item,"_trj <- ",item,"_trj %>%
+  set_attribute('",item,"_next_block',",next_trj_step,") %>%
+  simmer::rollback(target = '",item,"_rollback_to_start')")
+  env_txt=""
+  
+  var_txt <- paste0('ptr_',item_varnames,' = ',1:length(item_varnames),collapse = '\n')
+  var_txt <- paste0(var_txt,'\n')
+  #####
 
+  new_names <- item_varnames[(length(item_varnames) - length(item_vals)+1):length(item_varnames)]
+  
+  for(i in 1:length(new_names)){
+    var_txt <- paste0(var_txt,item,"_array <- ",item,"_array %>% mutate(",new_names[i], " = ",item_vals[i],")\n")
+  }
+  #####
+  df <- data.frame(
+    modelname = mod_df$model[1],
+    item = item,
+    trj_step = trj_step,
+    signal_txt=signal_txt,
+    signal_dir=signal_dir,
+    decision_txt=decision_txt,
+    next_trj_step = next_trj_step,
+    activity = activity,
+    var_txt = var_txt,
+    trj_txt = trj_txt,
+    env_txt = env_txt)
+  mod_df = rbind(mod_df, df)
+  
+}
 # build_stockpiles_old <-
 #   function(modeldf,
 #            pilenames,
@@ -389,6 +436,9 @@ save_text_to_file <- function(text,fname) {
 #   simmer::rollback(target = 'item_rollback_to_start')"
 #   env_txt=""
 #   trj_step <- length(which(modeldf$item == item))
+# 
+# ptr <- paste0('ptr_',item_varnames,' = ',1:length(item_varnames),collapse = '\n')
+# var_txt <- paste0(var_txt,ptr)
 #   var_txt=paste0("last_block_in_",item,"_trj=",trj_step)
 #   
 #   add_code_row(
