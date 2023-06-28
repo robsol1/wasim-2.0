@@ -20,13 +20,18 @@ check_next_trj_step <-
   }
 
 start_code <- function(item,activity,trj_step,next_trj_step){
-paste0(item,"_trj <- ",item,"_trj %>%
+ paste0(item,"_trj <- ",item,"_trj %>%
+  #########################################
+  ## Entering ",activity,"
+  #########################################
   ## branch_if_not_activity start
   branch(
     option = function() ifelse(get_attribute(env, '",item,"_next_block') == ",trj_step,", 1, 2),
     continue = c(TRUE, TRUE),
     trajectory('",item,"_activity_stay_in_block') %>%
-        set_attribute('",item,"_next_block',",next_trj_step,") %>% ")}
+        set_attribute('",item,"_next_block',",next_trj_step,") %>% ")
+
+}
 
 end_code <- function(item,activity,trj_step) {
   paste0(
@@ -43,10 +48,10 @@ end_code <- function(item,activity,trj_step) {
     
 update_array <- function(item,activity,trj_step,column,value,mod=""){
   paste0(
-    "log_(function() {  
-    paste0(':::::', 
+    "set_attribute('retatt', function() { 
       set_array(
         item = '",item,"',
+        item_id = get_attribute(env, '",item,"_id'),
         trj_step=",trj_step,",
         arrayname = '",paste0(item,"_array'"),",
         activity = '",activity,"',
@@ -54,8 +59,9 @@ update_array <- function(item,activity,trj_step,column,value,mod=""){
         column = ",column,",
         value = ",value,",
         mod = '",mod,"'
-      ))
-})"
+        )
+    }
+    )"
   )
 }
 update_stocks_from_val <- function(item,activity,trj_step,stockpile_id,stock_varpointer,value,mod=""){
@@ -63,6 +69,7 @@ update_stocks_from_val <- function(item,activity,trj_step,stockpile_id,stock_var
     "set_attribute('retatt', function() { 
       set_array(
         item = '",item,"',
+        item_id = get_attribute(env, '",item,"_id'),
         trj_step=",trj_step,",
         activity = '",activity,"',
         arrayname = 'stockpiles',
@@ -95,10 +102,10 @@ update_stocks_from_item_build <- function(item,activity,trj_step,stockpile_id,st
 }
 update_local_array_from_array <- function(item,activity,trj_step,arrayname,from_ptr,to_ptr,mod=""){
  txt <-  paste0(
-"log_(function() {paste0(':::::',
-  as.character(
+   "set_attribute('retatt', function() { 
     set_array_from_array(
       item = '",item,"',
+      item_id = get_attribute(env, '",item,"_id'),
       activity='",activity,"',
       row = get_attribute(env, '",item,"_id'),
       trj_step = ",trj_step,",
@@ -106,8 +113,8 @@ update_local_array_from_array <- function(item,activity,trj_step,arrayname,from_
       from_ptr = ",from_ptr,",
       to_ptr = ",to_ptr,",
       mod = '",mod,"'
-    )
-    )
-)})"
-  )
+        )
+    }
+    )"
+ )
 }

@@ -2,64 +2,126 @@
 read_log <- function(logfile) {
   log <- read.delim(logfile, header = F, sep = ":")
   names(log) <- c("time", "item_Id", "item_type", "activity","block" ,"message")
-  log <- log %>% mutate(activity = str_trim(activity),
+  log <- log %>% mutate(time=as.numeric(time),
+                        activity = str_trim(activity),
                         item_Id =str_trim(item_Id),
                         item_type=str_trim(item_type),
-                        seq = as.numeric(seq_along(time)))
+                        seq = as.numeric(seq_along(time))) %>% 
+    filter(!is.na(time))
 }
-get_sequence_from_log <- function(logdf){
-  seq <- log %>% group_by(item_type,item_Id, time, activity) %>%
-  summarise(seq = min(seq)) %>%
-  arrange(item_Id, time, seq) %>%
-  group_by(item_type,item_Id) %>%
-  mutate(
-    activity_seq = ifelse(lag(activity) == activity, 0, 1),
-    activity_seq = ifelse(is.na(activity_seq), 0, activity_seq),
-    activity_seq = cumsum(activity_seq),
-    lastevent = ifelse(is.na(lead(activity)), 0, 1)
-  ) %>%
-  group_by(item_type,item_Id, activity, activity_seq) %>%
-  summarise(
-    n = n(),
-    start = min(time),
-    end = max(time),
-    seq = min(activity_seq),
-    lastevent = min(lastevent)
-  ) %>%
-  mutate(duration = end - start) %>%
-  arrange(item_type,item_Id, seq)
+get_stocks <- function(log) {
+  stocks <- log %>%
+    filter(str_detect(message, "%")) %>% 
+    mutate(message = strsplit(message, '%')) %>%
+    unnest(message) %>%
+    mutate(
+      varname = substr(message, 1, str_locate(message, "=")),
+      varname = str_replace(varname, "=", ""),
+      varname = str_trim(varname),
+      val = str_replace(message, varname, ""),
+      val = str_replace(val, '=', ""),
+      val = str_trim(val)
+    ) %>%
+    select(-message) %>%
+    pivot_wider(names_from = varname, values_from = val) %>%
+    select(-'NA')
+  
+  names(stocks)[7] <- "arrayname"
+  stocks <- stocks %>%
+    mutate(
+      was = as.numeric(was),
+      is = as.numeric(is),
+      row = as.numeric(row),
+      col = as.numeric(col),
+      rowname = ifelse(
+        str_detect(arrayname, "stockpile"),
+        stockpiles$pilenames[row],
+        item_type
+      ),
+      varname = ifelse(
+        str_detect(arrayname, "stockpile"),
+        names(stockpiles)[col],
+        ifelse(
+          arrayname == "truck_array",
+          names(truck_array)[col],
+          ifelse(
+            arrayname == "lhd_array",
+            names(lhd_array)[col],
+            ifelse(arrayname == "conveyor", names(conveyor_array)[col], "unsure")
+          )
+        )
+      )
+    ) %>% 
+    rename(stockpile=rowname)
+  
+  
+}
+get_signals <- signals <- function(log) {
+  log %>%
+    filter(
+      str_detect(message, "waiting signal") |
+        str_detect(message, "released from signal") |
+        str_detect(message, "sending signal") |
+        str_detect(message, "sent signal ")
+      
+    )
 }
 
-summarise_log <- function(df){
-  names <- names(df)
-  df = if (length(names[str_detect(names, "message")])) {
-    get_sequence_from_log(df)
-  }
-  df <- df %>% 
-    filter(lastevent > 0) %>% 
-    group_by(item_type,item_Id,activity) %>% 
-    summarise(events=n(),tot_duration=sum(duration),avg_duration=mean(duration),sd_duration=sd(duration))
-}
-
-get_attributes <- function(env){
-  attributes <- get_mon_attributes(env) %>%
+get_attributes <- function(path){
+  attributes <- read_csv(path) %>%
     mutate(seq = as.numeric(seq_along(time)),
            item_id = as.numeric(gsub("[^0-9.-]", "", name)),
            item_type = gsub("[0-9.]", "", name)) %>% 
     dplyr::select(replication,seq,time,item_type,name,key,value)
 }
-
-get_stock_trend <- function(df=attributes){
-  df <- df %>% 
-    filter(key %like% "stocks_val") %>% 
-    arrange(replication,key,time)
+get_status <- function(attributes) {
+  status <- attributes %>%
+    filter(str_detect(key, "_status"))
+  status <- left_join(status, stat_defn)
 }
+
+get_block_seq <- function(log) {
+  log %>%
+    filter(message != 'End and go to next block') %>%
+    filter(message != 'Block id is not next block so skip block') %>%
+    filter(message != 'continue skipping to next block') %>%
+    arrange(item_Id, seq) %>%
+    group_by(item_Id) %>%
+    mutate(
+      new_event = ifelse(lag(block) != block, 1, 0),
+      new_event = ifelse(is.na(new_event), 1, new_event),
+      event = cumsum(new_event)
+    ) %>%
+    group_by(item_Id, event, activity, block) %>%
+    summarise(last_seq=max(seq),start = min(time), end = max(time)) %>%
+    mutate(duration = round(end - start, 2))
+}
+
+get_last_event <- function(log){
+  block_seq <- get_block_seq(log)
+  last_event <- block_seq %>% 
+    group_by(item_Id) %>%
+    summarise(last_event =max(end),last_seq =max(last_seq)) %>% 
+    mutate(event_type="any")
+  t <- left_join(last_event,block_seq)
+  last_sig_event <- block_seq %>% 
+    filter(duration > 1)%>% 
+    group_by(item_Id) %>%
+    summarise(last_event =max(end),last_seq =max(last_seq))%>% 
+    mutate(event_type="significant")
+  s <- left_join(last_sig_event,block_seq)
+  rbind(t,s) %>% 
+    arrange(item_Id,last_seq)
+}
+
+
+
 
 ## Plotting fns
 
 plot_blocks <- function(df,filename=NULL,
-                        textsize = 0.3,
-                        arrowsize = 0.3,
+                        textsize = 0.2,
+                        arrowsize = 0.2,
                         height=11,
                         width=16
                         ) {
@@ -157,7 +219,9 @@ plot_blocks <- function(df,filename=NULL,
   E(network)$arrow.size = arrowsize
   E(network)$curved = TRUE
   V(network)$label.cex = textsize
-  V(network)$shape="crectangle"
+  V(network)$shape="rectangle"
+  V(network)$size=10
+  V(network)$size2=10
   df <- data.frame(activity = names(V(network)))
   t <-
     dist_nodes %>% group_by(activity) %>% summarise(node_colour = max(node_colour)) %>%
@@ -176,7 +240,7 @@ plot_blocks <- function(df,filename=NULL,
     plot(network)
     dev.off()
   }
-  plot(network)
+  p <- plot(network)
 
 }
 
@@ -190,4 +254,49 @@ plot_trajectory <- function(trj,height=3000,filename=NULL){
   plot
 }
 
+plot_stocks <- function(log){
+  stocks <- get_stocks(log)
+  current <- stocks %>% 
+    filter(varname=='current_stocks') %>% 
+    select(time,seq,varname,stockpile,was,is) %>% 
+    pivot_longer(cols = c(was,is)) %>% 
+    mutate(order=ifelse(name=='was',1,2)) %>% 
+    arrange(stockpile,seq,order)
+  
+  current %>% ggplot(aes(x=time,y=value)) + 
+    geom_path()+
+    facet_wrap(vars(stockpile),scales = "free")+
+    labs(title="Stockpile Trends")
+}
+plot_status <- function(status){
+  status <- status %>%
+    arrange(name, seq) %>%
+    group_by(name) %>% 
+    mutate(
+      was = lag(value),
+      was = ifelse(is.na(was), lead(was), was)
+    ) %>% 
+    select(time,seq,name,stat_label,was,value,) %>% 
+    rename(is=value,item_id=name,status=value) %>% 
+    # filter(was!=is) %>% 
+    # pivot_longer(cols = c(is,was),names_repair = "check_unique",values_to = "Status") %>% 
+   # mutate(order=ifelse(name=='was',1,2)) %>% 
+    arrange(item_id,seq)
 
+  status %>% ggplot(aes(x=time,y=status,colour=stat_label)) + 
+    geom_point()+
+    facet_wrap(vars(item_id))+
+    labs(title="Status Trends")
+  
+  
+  }
+summarise_log <- function(df){
+  names <- names(df)
+  df = if (length(names[str_detect(names, "message")])) {
+    get_sequence_from_log(df)
+  }
+  df <- df %>% 
+    filter(lastevent > 0) %>% 
+    group_by(item_type,item_Id,activity) %>% 
+    summarise(events=n(),tot_duration=sum(duration),avg_duration=mean(duration),sd_duration=sd(duration))
+}

@@ -76,7 +76,7 @@ add_set_multiple_attributes <- function(modelname,
                                     mod_code,
                                     from_type,
                                     to_type) {
-  trj_step = check_trj_step(trj_step = trj_step, mod_df = mod_df)
+  trj_step = check_trj_step(item,trj_step = trj_step, mod_df = mod_df)
   next_trj_step = check_next_trj_step(next_trj_step = next_trj_step, trj_step = trj_step,relative = relative)
   
   code <-
