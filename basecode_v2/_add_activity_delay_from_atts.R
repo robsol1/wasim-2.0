@@ -76,8 +76,9 @@ add_activity_delay_from_atts <- function(modelname,
       activity_delay_from_atts(trj_step=trj_step,TUM_text = TUM_text,delay_att_name = delay_att_name,unit_size_att = unit_size_att),
       end_code(trj_step = trj_step)
     )
-  
-  var_txt <- ""
+  var_txt <- paste0("item_unit_capacity <- ",item_unit_capacity,"\n",
+                      "item_mttr_code <- ",item_mttr_txt,"\n",
+                      "item_mtbf_code <- ",item_mtbf_txt,"\n")
   env_txt <- ""
   mod_df <- add_code_row(
     modelname=modelname,

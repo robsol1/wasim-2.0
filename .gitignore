@@ -47,3 +47,14 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# output files
+
+*.pdf
+*.html
+/develop/*.txt
+/develop/*_code.R
+
+wasim-2.0.rproj
+# 
+lib/
