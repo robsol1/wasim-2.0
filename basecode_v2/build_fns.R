@@ -64,6 +64,24 @@ update_array <- function(item,activity,trj_step,column,value,mod=""){
     )"
   )
 }
+update_array_from_attribute <- function(item,activity,trj_step,column,att_name,mod=""){
+  paste0(
+    "set_attribute('retatt', function() { 
+      set_array(
+        item = '",item,"',
+        item_id = get_attribute(env, '",item,"_id'),
+        trj_step=",trj_step,",
+        arrayname = '",paste0(item,"_array'"),",
+        activity = '",activity,"',
+        row = get_attribute(env, '",item,"_id'),
+        column = ",column,",
+        value = get_attribute(env, '",att_name,"'),
+        mod = '",mod,"'
+        )
+    }
+    )"
+  )
+}
 update_stocks_from_val <- function(item,activity,trj_step,stockpile_id,stock_varpointer,value,mod=""){
   paste0(
     "set_attribute('retatt', function() { 

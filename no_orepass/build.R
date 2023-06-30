@@ -3,7 +3,7 @@ source("fns.R")
 
 
 
-modelname="develop"
+modelname="no_orepass"
 sequence_desc='initial suite'
 input_xl_file="inputs.xlsx"
 input_xl_sheet="inputs"

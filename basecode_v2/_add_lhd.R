@@ -30,7 +30,7 @@ access_stockpile <- function(mod_df,
   mod_df <- add_wait_signal(
     mod_df = mod_df,
     item = item,
-    activity = paste0("wait_release_", stockpile_name, "_access"),
+    activity = paste0(item,"wait_release_", stockpile_name, "_access"),
     trj_step = -1,
     next_trj_step = -1,
     relative = TRUE,
@@ -40,7 +40,7 @@ access_stockpile <- function(mod_df,
   mod_df <- add_get_or_put_activity_delay_from_array(
     mod_df=mod_df,
     item = item,
-    activity = paste0(putorget, sigverb ,stockpile_name),
+    activity = paste0(item,"_",putorget, sigverb ,stockpile_name),
     trj_step = -1,
     next_trj_step = -1,
     TUM_text = 's_working',
@@ -54,7 +54,7 @@ access_stockpile <- function(mod_df,
   mod_df <- add_send_signal(
     mod_df = mod_df,
     item = item,
-    activity = paste0("send_release_", stockpile_name, "_access"),
+    activity = paste0(item,"_send_release_", stockpile_name, "_access"),
     trj_step = -1,
     next_trj_step = -1,
     relative = FALSE,
@@ -87,7 +87,7 @@ add_load_haul_dump <-
     mod_df <- add_wait_signal(
       mod_df = mod_df,
       item = item,
-      activity = paste0("wait_release_blocked_",to_stockpile_name),
+      activity = paste0(item,"_wait_release_blocked_",to_stockpile_name),
       trj_step = -1,
       next_trj_step = -1,
       relative = TRUE,
@@ -97,7 +97,7 @@ add_load_haul_dump <-
     mod_df <- add_wait_signal(
       mod_df = mod_df,
       item = item,
-      activity = paste0("wait_release_starved_",from_stockpile_name),
+      activity = paste0(item,"_wait_release_starved_",from_stockpile_name),
       trj_step = -1,
       next_trj_step = -2,
       relative = TRUE,
@@ -117,7 +117,7 @@ add_load_haul_dump <-
     mod_df <- add_activity_delay_from_array(
       mod_df = mod_df,
       item = item,
-      activity = 'travel_loaded',
+      activity = paste0(item,'_travel_loaded'),
       trj_step = -1,
       next_trj_step = -1,
       relative = FALSE,
@@ -133,6 +133,16 @@ add_load_haul_dump <-
         putorget = "put",
         access_val=access_val
       )
+    mod_df <- add_activity_delay_from_array(
+      mod_df = mod_df,
+      item = item,
+      activity = paste0(item,'_travel_empty'),
+      trj_step = -1,
+      next_trj_step = -1,
+      relative = FALSE,
+      breakdown = TRUE,
+      TUM_text = 's_working'
+    )
     return(mod_df)
   }
 

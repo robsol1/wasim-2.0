@@ -146,7 +146,8 @@ init_model <- function(model,
     activity = '_activate_model',
     var_txt = paste0("env <- simmer('", envname, "' , log_level = ", level, ")\nseed=thisseed\n"),
     trj_txt="",
-    env_txt=""
+    env_txt = paste0("env <-  env  %>%
+    add_resource('schedule_queue', 1,preemptive = TRUE,preempt_order = 'fifo')")
   )
   
   

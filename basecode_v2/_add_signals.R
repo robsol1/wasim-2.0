@@ -66,7 +66,7 @@ add_send_signal <- function(
 wait_signal <- function(item,activity,signal_name,trj_step,wait_status_text){
   Block_code <- paste0("
         ",robs_log(item,activity,trj_step,paste0('waiting signal ',signal_name),ret=FALSE,pipe=TRUE),"
-        set_attribute('local_",item,"_",activity,"_status', ",wait_status_text,") %>%
+        set_attribute('local_",activity,"_status', ",wait_status_text,") %>%
         trap('",signal_name,"') %>%
         wait() %>%
         ",robs_log(item,activity,trj_step,paste0('released from signal ;',signal_name),pipe=FALSE,ret=FALSE))

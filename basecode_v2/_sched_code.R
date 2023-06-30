@@ -102,6 +102,9 @@ sched_access_to_stockpile <- function(sched_name,
 ##### Schedular utility functions
 
 sched_log <- function(item,item_id,sched_name,trj_step,message){
+  # print(paste0("message1 = ",message))
+  # print(paste0("item_id = ",item_id))
+  # print(paste0("item_id-1 = ",item_id-1))
   cat(paste0(simmer::now(env),
              ":",paste0(item,item_id-1),
              ":",paste0(item,
@@ -112,4 +115,14 @@ sched_log <- function(item,item_id,sched_name,trj_step,message){
   )
 }
 
+
+r_get_global <- function(item,item_id,sched_name,trj_step,att_name){
+  # print(paste0("att name1 =",att_name))
+  ret <- get_global(env, att_name)
+  # print(paste0("att val =",ret))
+  message <- paste0(att_name, " = ", ret, "\n")
+  # print(paste0("message= ",message))
+  sched_log(item=item,item_id=item_id,sched_name=sched_name,trj_step = trj_step,message = message)
+  ret
+}
 

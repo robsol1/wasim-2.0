@@ -3,7 +3,7 @@ source("fns.R")
 
 
 
-modelname="develop"
+modelname="no_orepass"
 sequence_desc='initial suite'
 input_xl_file="inputs.xlsx"
 input_xl_sheet="inputs"
@@ -59,9 +59,9 @@ for(run_id in 1:runs) {
   # Extract attributes from "env"
   ##
   attributes <- get_mon_attributes(env)
-  write.csv(attributes,paste0(run_dir, "attributes_file.csv"))
-  write.csv(lhd_array,paste0(run_dir, "lhd_array.csv"))
-  write.csv(truck_array,paste0(run_dir, "truck_array.csv"))
+  write.csv(attributes,paste0(run_dir, "attributes_file.csv"),row.names = FALSE)
+  write.csv(lhd_array,paste0(run_dir, "lhd_array.csv"),row.names = FALSE)
+  write.csv(truck_array,paste0(run_dir, "truck_array.csv"),row.names = FALSE)
 }
 
 

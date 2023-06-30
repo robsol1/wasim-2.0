@@ -132,7 +132,7 @@ plot_blocks <- function(df,filename=NULL,
   distinct_mod_df <- distinct_mod_df %>%
     mutate(
       next_trj_step = strsplit(next_trj_step, ","),
-      activity = paste0(item, "_", activity),
+      activity = paste0("block_",trj_step,"_",item, "_", activity),
       activity = (stringr::str_wrap(gsub(
         "[_]", " ", activity
       ), width = txtwidth)),

@@ -28,20 +28,20 @@ set_generic_attributes(
   item,
   activity,
   trj_step,
-  to_name = paste0(item,"_",activity,"_status"),
+  to_name = paste0(activity,"_status"),
   from_name = TUM_text,
   mod_code = '',
   from_type = 'fn',
   to_type = 'local'
 )," %>% 
 ",delay_from_array(item=item,activity=activity,trj_step=trj_step,
-                   varpointer=paste0("ptr_",item,"_",activity,"_delay"),
-                   from_fn=paste0(item,"_",activity,"_delay_code()"))," %>% 
+                   varpointer=paste0("ptr_",activity,"_delay"),
+                   from_fn=paste0(activity,"_delay_code()"))," %>% 
 ",robs_log(item,activity,trj_step,'finished delay',ret=FALSE),"
 ",update_local_array_from_array(item=item,activity=activity,trj_step=trj_step,arrayname=paste0(item,"_array"),
-                                from_ptr=paste0("ptr_",item,"_",activity,"_delay"),to_ptr=paste0("ptr_",item,"_ute_time"),mod='+' )," %>% 
+                                from_ptr=paste0("ptr_",activity,"_delay"),to_ptr=paste0("ptr_",item,"_ute_time"),mod='+' )," %>% 
 ",update_local_array_from_array(item=item,activity=activity,trj_step=trj_step,arrayname=paste0(item,"_array"),
-                                from_ptr=paste0("ptr_",item,"_unit_capacity"),to_ptr=paste0("ptr_",item,"_",activity,"_throughput"),mod='+' )
+                                from_ptr=paste0("ptr_",item,"_unit_capacity"),to_ptr=paste0("ptr_",activity,"_throughput"),mod='+' )
   )
 }
 
@@ -165,7 +165,7 @@ add_activity_delay_from_array <- function(
   }
   trj_txt <-
     paste0(trj_txt, end_code(item, activity, trj_step = trj_step))
-  new_names <- c(paste0(item,"_",activity,"_throughput"))
+  new_names <- c(paste0(activity,"_throughput"))
   new_vals <<- c(0) 
   item_varnames <<- append(item_varnames,new_names)
   item_vals <<- append(item_vals,new_vals)
@@ -200,7 +200,8 @@ get_or_put_activity_delay_from_array <-
            TUM_text,
            stockpile_id,
            type,
-           access_val) {
+           access_val,
+           item_varpointer) {
     if(type=='put'){
       curr_move ='+'
       com_move ='-'
@@ -210,18 +211,22 @@ get_or_put_activity_delay_from_array <-
     } else {
       print("invalid type variable in get_or_put_activity_delay_from_array, only get or put allowed")
     }
+    if(is.null(item_varpointer)){
+      item_varpointer = paste0("ptr_",item,"_unit_capacity")
+    }
+
     trj <-  paste0("\n", robs_log(item,activity,trj_step,'start get_activity_delay_from_atts',ret = FALSE)
                    ,"\n",
                    update_stocks_from_item_build(item=item,activity=activity,trj_step=trj_step,
                                                  stockpile_id=stockpile_id,
                                                  stock_varpointer=get("varpointer_current_stocks"),
-                                                 item_varpointer=paste0("ptr_",item,"_unit_capacity"),
+                                                 item_varpointer=item_varpointer,
                                                  mod=curr_move)
                    ," %>% \n", 
                    update_stocks_from_item_build(item=item,activity=activity,trj_step=trj_step,
                                                  stockpile_id=stockpile_id,
                                                  stock_varpointer=varpointer_committed,
-                                                 item_varpointer=paste0("ptr_",item,"_unit_capacity"),
+                                                 item_varpointer=item_varpointer,
                                                  mod=com_move)
                    ," %>% \n", 
                    update_stocks_from_val(item=item,activity=activity,trj_step=trj_step,
@@ -262,7 +267,8 @@ add_get_or_put_activity_delay_from_array <- function(
     access_val=1,
     breakdown_flag=TRUE,
     relative = FALSE,
-    send_Signal_name="")
+    send_Signal_name="",
+    item_varpointer=NULL)
 {
   trj_step <- check_trj_step(item,trj_step = trj_step,mod_df = mod_df)
   
@@ -278,7 +284,8 @@ add_get_or_put_activity_delay_from_array <- function(
     TUM_text=TUM_text,
     stockpile_id=stockpile_id,
     type=type,
-    access_val=access_val)
+    access_val=access_val,
+    item_varpointer = paste0("ptr_",item,"_unit_capacity"))
   if (str_length(send_Signal_name) > 0) {
     code <- paste0(
       code,
@@ -309,8 +316,8 @@ add_get_or_put_activity_delay_from_array <- function(
       code,
       end_code(item,activity,trj_step = trj_step)
     )
-  new_names <- c(paste0(item,"_",activity,"_throughput"))
-  new_vals <<- c(0) 
+  new_names <- c(paste0(activity,"_throughput"))
+  new_vals <- c(0) 
   item_varnames <<- append(item_varnames,new_names)
   item_vals <<- append(item_vals,new_vals)
   var_txt <- ""
