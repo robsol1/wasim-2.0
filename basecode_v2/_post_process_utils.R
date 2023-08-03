@@ -9,7 +9,8 @@ read_log <- function(logfile) {
                         seq = as.numeric(seq_along(time))) %>% 
     filter(!is.na(time))
 }
-get_stocks <- function(log) {
+get_stocks <- function(log,pilenames) {
+  colnames <- c("pilenames","maxstock","initstocks","access_limit","current_access_assigned","current_stocks","committed")
   stocks <- log %>%
     filter(str_detect(message, "%")) %>% 
     mutate(message = strsplit(message, '%')) %>%
@@ -27,35 +28,19 @@ get_stocks <- function(log) {
     select(-'NA')
   
   names(stocks)[7] <- "arrayname"
+  
   stocks <- stocks %>%
+    filter(str_detect(arrayname, "stockpile")) %>% 
     mutate(
       was = as.numeric(was),
       is = as.numeric(is),
       row = as.numeric(row),
       col = as.numeric(col),
-      rowname = ifelse(
-        str_detect(arrayname, "stockpile"),
-        stockpiles$pilenames[row],
-        item_type
-      ),
-      varname = ifelse(
-        str_detect(arrayname, "stockpile"),
-        names(stockpiles)[col],
-        ifelse(
-          arrayname == "truck_array",
-          names(truck_array)[col],
-          ifelse(
-            arrayname == "lhd_array",
-            names(lhd_array)[col],
-            ifelse(arrayname == "conveyor", names(conveyor_array)[col], "unsure")
-          )
-        )
-      )
-    ) %>% 
+      rowname = pilenames[row],
+      varname = colnames[col]) %>% 
     rename(stockpile=rowname)
-  
-  
 }
+
 get_signals <- signals <- function(log) {
   log %>%
     filter(
@@ -77,7 +62,11 @@ get_attributes <- function(path){
 get_status <- function(attributes) {
   status <- attributes %>%
     filter(str_detect(key, "_status"))
-  status <- left_join(status, stat_defn)
+  status <- left_join(status, stat_defn) %>% 
+    group_by(name) %>% 
+    arrange(name,time) %>% 
+    mutate(end_time =lead(time),
+           duration = end_time-time)
 }
 
 get_block_seq <- function(log) {
@@ -254,8 +243,8 @@ plot_trajectory <- function(trj,height=3000,filename=NULL){
   plot
 }
 
-plot_stocks <- function(log){
-  stocks <- get_stocks(log)
+plot_stocks <- function(log,pilenames){
+  stocks <- get_stocks(log,pilenames)
   current <- stocks %>% 
     filter(varname=='current_stocks') %>% 
     select(time,seq,varname,stockpile,was,is) %>% 
@@ -299,4 +288,60 @@ summarise_log <- function(df){
     filter(lastevent > 0) %>% 
     group_by(item_type,item_Id,activity) %>% 
     summarise(events=n(),tot_duration=sum(duration),avg_duration=mean(duration),sd_duration=sd(duration))
+}
+
+summarise_all_runs <- function(sequence_desc) {
+  files <- dir(sequence_desc, recursive = TRUE)
+  files <- files[str_detect(files, '.csv')]
+  attributefiles <- files[str_detect(files, 'attributes')]
+  equipment <-
+    data.frame(fullpath = files[!str_detect(files, 'attributes')]) %>%
+    mutate(
+      run = as.numeric(substr(fullpath, 8, 10)),
+      name = basename(fullpath),
+      equip_type = str_replace(name, "_array.csv", "")
+    )
+  # summarise run TUM by equip
+  for (run_id in 1:length(attributefiles)) {
+    status <-
+      get_status(get_attributes(paste0(sequence_desc, attributefiles[run_id])))
+    status_summary <- status %>%
+      group_by(item_type, name, stat_label) %>%
+      summarise(Stat_duration = sum(duration, na.rm = T)) %>%
+      pivot_wider(
+        names_from = stat_label,
+        values_from = Stat_duration,
+        values_fill = 0
+      ) %>%
+      mutate(run_id = run_id)
+    
+    # run through all equipment in that run
+    runeq <- equipment %>%
+      filter(run == run_id)
+    for (eq_id in 1:nrow(runeq)) {
+      equip_data <- read.csv(paste0(sequence_desc, runeq$fullpath[eq_id]))
+      names <- names(equip_data)
+      names <-
+        str_replace(names, paste0(runeq$equip_type[eq_id], "_"), "")
+      names(equip_data) <- names
+      names(equip_data)[1] <- "name"
+      equip_data <- equip_data %>%
+        mutate(name = paste0(runeq$equip_type[eq_id], name - 1),
+               run_id  = run_id)
+      if (eq_id == 1) {
+        toteq = equip_data
+      } else {
+        toteq <- full_join(toteq, equip_data)
+      }
+    }
+    toteq[is.na(toteq)] <- 0
+    if (run_id == 1) {
+      total_summary <- full_join(toteq, status_summary)
+    } else {
+      total_summary <-
+        rbind(total_summary, full_join(toteq, status_summary))
+    }
+    
+  }
+  total_summary
 }

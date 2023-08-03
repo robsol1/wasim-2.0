@@ -4,7 +4,7 @@ source("fns.R")
 
 
 modelname="orepass"
-sequence_desc='initial suite'
+sequence_desc='LongHaul'
 input_xl_file="Scenario_Inputs.xlsx"
 input_xl_sheet="LongHaul"
 source(paste0(modelname,"/_add_special_blocks.R"))
@@ -62,6 +62,7 @@ for(run_id in 1:runs) {
   write.csv(attributes,paste0(run_dir, "attributes_file.csv"))
   write.csv(bogger_array,paste0(run_dir, "bogger_array.csv"))
   write.csv(truck_array,paste0(run_dir, "truck_array.csv"))
+  write.csv(conveyor_array,paste0(run_dir, "conveyor_array.csv"))
 }
 
 

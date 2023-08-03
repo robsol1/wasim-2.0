@@ -60,7 +60,7 @@ mod_df <- init_model(model=modelname,level = loglevel)
 
 
 #####################################################
-item="lhd"
+item="bogger"
 vardf <- inputs %>%
   select(starts_with(item))
 mod_df <-
