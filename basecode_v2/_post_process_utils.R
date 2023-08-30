@@ -339,7 +339,7 @@ summarise_all_runs <- function(sequence_desc) {
       total_summary <- full_join(toteq, status_summary)
     } else {
       total_summary <-
-        rbind(total_summary, full_join(toteq, status_summary))
+        full_join(total_summary, full_join(toteq, status_summary))
     }
     
   }
