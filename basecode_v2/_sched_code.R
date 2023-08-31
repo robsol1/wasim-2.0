@@ -32,7 +32,7 @@ sched_load_haul_dump <- function(sched_name,
     if (av_stock > unit_volume) {
       ret = 3
       sched_log(item=item, item_id=item_id,sched_name=sched_name,trj_step=trj_step, 
-                message=paste0("space available stock available so go ")
+                message=paste0("space available  and stock available so go ")
       )
       if(commit_tonnes){
         sched_log(item=item, item_id=item_id,sched_name=sched_name,trj_step=trj_step,
