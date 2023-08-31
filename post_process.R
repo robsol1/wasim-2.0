@@ -4,9 +4,9 @@
 source("fns.R")
 
 modelname="orepass"
-sequence_desc='ShortHaul'
-input_xl_file="Scenario_Inputs.xlsx"
-input_xl_sheet="ShortHaul"
+sequence_desc='initial suite'
+input_xl_file="inputs.xlsx"
+input_xl_sheet="inputs"
 
 ### Run to generate appropriate pointers
 sequence_desc <- paste0(paste0(modelname,'/',sequence_desc, "/"))
@@ -35,16 +35,16 @@ block_seq <- get_block_seq(log)
 last_event <- get_last_event(log)
 
 #Plot the trend of stocks throughout the model
-plot_stocks(log=log,pilenames=stockpiles$pilenames)
+plot_stocks(log=log,pilenames=stockpiles$pilenames,save_plot_dir=run_dir)
 
 #plot the status of items
 status <- get_status(attributes)
-plot_status(status)
+plot_status(status,save_plot_dir=run_dir)
 
 # Block flow of model- Useful for visualizing the overall flow of the model
 # The layout changes each time you plot it but the sequence is constant.
 # Suggest re-running until you get a good visualization of the pattern
-plot_blocks(mod_df, height = 22, width = 32)
+plot_blocks(mod_df, height = 22, width = 32,save_plot_dir = sequence_desc)
 
 # This will summaries all the data from a suite of runs into a single dataframe.  Useful for understanding the results of 
 # a scenario with multiple runs.

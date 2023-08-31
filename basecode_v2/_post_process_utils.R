@@ -108,7 +108,7 @@ get_last_event <- function(log){
 
 ## Plotting fns
 
-plot_blocks <- function(df,filename=NULL,
+plot_blocks <- function(df,save_plot_dir,
                         textsize = 0.2,
                         arrowsize = 0.2,
                         height=11,
@@ -224,11 +224,11 @@ plot_blocks <- function(df,filename=NULL,
     )
   vnodes <- left_join(df, t)
   V(network)$color = vnodes$node_colour
-  if(!is.null(filename)){
-    pdf(filename,width=16,height=11)
+  #if(!is.null(filename)){
+    pdf(paste0(save_plot_dir,"transition.pdf"),width=16,height=11)
     plot(network)
     dev.off()
-  }
+  #}
   p <- plot(network)
 
 }
@@ -243,7 +243,7 @@ plot_trajectory <- function(trj,height=3000,filename=NULL){
   plot
 }
 
-plot_stocks <- function(log,pilenames){
+plot_stocks <- function(log,pilenames,save_plot_dir){
   stocks <- get_stocks(log,pilenames)
   current <- stocks %>% 
     filter(varname=='current_stocks') %>% 
@@ -252,12 +252,16 @@ plot_stocks <- function(log,pilenames){
     mutate(order=ifelse(name=='was',1,2)) %>% 
     arrange(stockpile,seq,order)
   
-  current %>% ggplot(aes(x=time,y=value)) + 
+  p <- current %>% ggplot(aes(x=time,y=value)) + 
     geom_path()+
     facet_wrap(vars(stockpile),scales = "free")+
     labs(title="Stockpile Trends")
+  pdf(paste0(save_plot_dir,"stock_plot.pdf"),width=16,height=11)
+  plot(p)
+  dev.off()
+  p
 }
-plot_status <- function(status){
+plot_status <- function(status,save_plot_dir){
   status <- status %>%
     arrange(name, seq) %>%
     group_by(name) %>% 
@@ -271,12 +275,15 @@ plot_status <- function(status){
     # pivot_longer(cols = c(is,was),names_repair = "check_unique",values_to = "Status") %>% 
    # mutate(order=ifelse(name=='was',1,2)) %>% 
     arrange(item_id,seq)
-
-  status %>% ggplot(aes(x=time,y=status,colour=stat_label)) + 
+  
+  p <- status %>% ggplot(aes(x=time,y=status,colour=stat_label)) + 
     geom_point()+
     facet_wrap(vars(item_id))+
     labs(title="Status Trends")
-  
+  pdf(paste0(save_plot_dir,"status_plot.pdf"),width=16,height=11)
+  plot(p)
+  dev.off()
+  p
   
   }
 summarise_log <- function(df){
