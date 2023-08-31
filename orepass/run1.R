@@ -4,9 +4,9 @@ source("fns.R")
 
 
 modelname="orepass"
-sequence_desc='LongHaul'
-input_xl_file="Scenario_Inputs.xlsx"
-input_xl_sheet="LongHaul"
+sequence_desc='initial suite'
+input_xl_file="inputs.xlsx"
+input_xl_sheet="inputs"
 source(paste0(modelname,"/_add_special_blocks.R"))
 run_duration =7*24*3600
 
