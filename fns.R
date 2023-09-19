@@ -370,246 +370,82 @@ makevalidname <- function(text){
 }
 
 
-
-# run_model <-
-#   function(modelname,
-#            scenario_desc,
-#            runduration,
-#            reps = 1,
-#            thisseed = NULL,
-#            loglevel = 0,
-#            verbose=FALSE) {
-#     if(!dir.exists(scen_dir)){
-#       dir.create(scen_dir)
-#     }
-#     
-#     if(!dir.exists(rundir)){
-#       dir.create(rundir)
-#     }
-#     
-#     full_model_filename <- paste0(model_path,modelname,"_code.R")
-#     source(paste0(model_path,modelname,"_build.R")) # build and save code
-#     save_model_str(scen_dir,
-#                    mod_df)
-#     for (i in 1:reps) {
-#       if (loglevel > 0)
-#         sink(file = paste0(rundir, 'run_', sprintf("%03d", i), '_log.txt'))
-#       if (is.null(thisseed))
-#         thisseed <<- as.integer(runif(1, 1, 10000))
-#       source(full_model_filename) #load model
-#       env <- env %>% run(runduration)
-#       print(i)
-#       if (loglevel > 0) {
-#         sink()
-#       }
-#       save_results(
-#         modelname,
-#         scenario_desc,
-#         rundir,
-#         run_number = i,
-#         df = mod_df,
-#         resource = get_mon_resources(env),
-#         attributes = get_mon_attributes(env),
-#         #arrive = get_mon_arrivals(env, per_resource = FALSE),
-#         verbose
-#       )
-#       rm(env)
-#     }
-#   }
-# 
-
-# #get basic data 
-# addid <- function(df,
-#                   modelname,
-#                   scenario_desc,
-#                   run_number) {
-#   ncols = ncol(df)
-#   df$modelname = modelname
-#   df$scenario = scenario_desc
-#   df$sens_step = sens_step
-#   df$run_number = run_number
-#   
-#   if ("name" %in% colnames(df)) {
-#     df <- df %>%
-#       mutate(
-#         name = ifelse(name == "", 'global0', name),
-#         item_id = as.numeric(gsub("[^0-9.-]", "", name)),
-#         item_type = gsub("[0-9.]", "", name)
-#       )
-#   }
-#   df
-# }
-
-# protosave <-
-#   function(df,
-#            modelname,
-#            scenario_desc,
-#            run_number,
-#            path,
-#            dfname) {
-#     if (nrow(df) > 0) {
-#       
-#       df <- addid(df,modelname,scenario_desc,run_number)
-#       
-#       write.csv(df,
-#                 paste0(
-#                   rundir,
-#                   '/',
-#                   dfname,
-#                   '_sens_',
-#                   sprintf("%03d", sens_step),
-#                   '_run_',
-#                   sprintf("%03d", run_number),
-#                   '.csv'
-#                 ),
-#                 row.names = FALSE)
-#     } else {
-#       print(paste0('Warning : dataframe ', dfname, ' has zero rows'))
-#     }
-#     df
-#   }
-# save_results <- function(modelname,
-#                          scenario_desc,
-#                          path,
-#                          run_number,
-#                          df,
-#                          resource,
-#                          attributes,
-#                          #arrive,
-#                          verbose) {
-#   varlist <- get_mod_vars(df = df)
-#   
-#   
-#   varlist <- protosave(
-#     df = varlist,
-#     modelname = modelname,
-#     scenario_desc = scenario_desc,
-#     run_number = run_number,
-#     path = path,
-#     dfname = 'vars'
-#   )
-#   if (verbose) {
-#     attributes <-
-#       protosave(
-#         df = attributes,
-#         modelname = modelname,
-#         scenario_desc = scenario_desc,
-#         run_number = run_number,
-#         path = path,
-#         dfname = 'attributes'
-#       )
-#     protosave(
-#       df = resource,
-#       modelname = modelname,
-#       scenario_desc = scenario_desc,
-#       run_number = run_number,
-#       path = path,
-#       dfname = 'resource'
-#     )
-# 
-#   }
-# 
-#   if (!exists("summary_result")) {
-#     summary_result <<- get_run_sum(attributes = attributes)
-#   } else{
-#     summary_result <<-
-#       full_join(summary_result, get_run_sum(attributes = attributes))
-#   }
-# }
-# combine_csv <- function(path,target){
-#   d <- dir(path)
-#   files <- d[grep(target, d)]
-#   if (length(files) > 0) {
-#     df <- read.csv(paste0(seq_path,'/', files[1]))
-#     if (length(files) > 1) {
-#       files <- files[2:length(files)]
-#       for (file in files) {
-#         df <- rbind(df, read.csv(paste0(seq_path,'/', file)))
-#       }
-#     }
-#   } else {
-#     print(paste0('Warning  no files match',target,'.'))
-#     df <- NULL
-#   }
-#   
-#   df
-# }
-# scenario_summary <- function(path, target) {
-#   d <- dir(path)
-#   files <- d[grep(target, d)]
-#   if (length(files) > 0) {
-#     df <- get_run_sum(read.csv(paste0(seq_path,'/', files[1])))
-#     if (length(files) > 1) {
-#       files <- files[2:length(files)]
-#       for (file in files) {
-#         df <- rbind(df, get_run_sum(read.csv(paste0(seq_path,'/', file))))
-#       }
-#     }
-#   } else {
-#     print(paste0('Warning  no files match',target,'.'))
-#     df <- NULL
-#   }
-#   
-#   df
-# }
-# 
-# save_model_str <- function(path,df){
-#   write.csv(df,paste0(path,'/structure.csv'))
-# }
-
-# get_run_sum <- function(attributes) {
-#   attributes <- attributes %>%
-#     mutate(item_id = as.numeric(gsub("[^0-9.-]", "", name)),
-#            item_type = gsub("[0-9.]", "", name))
-#   status <- attributes %>%
-#     filter(key %like% 'status' & name != "") %>%
-#     arrange(replication, name, time) %>%
-#     group_by(replication, name) %>%
-#     mutate(
-#       event_end = lead(time),
-#       event_end = ifelse(is.na(event_end), runduration, event_end),
-#       event_duration = event_end - time,
-#       hrs = time / 3600
-#     ) %>%
-#     filter(event_duration > 0)
-#   status <- left_join(status, read.csv('statuscodes.csv'))
-#   
-#   eqnumbers <- status %>%
-#     group_by(item_type, name) %>%
-#     summarise() %>%
-#     group_by(item_type) %>%
-#     summarise(fleetsize = n())
-#   
-#   status_by_fleet <- status %>%
-#     group_by(modelname, scenario, sens_step, run_number, item_type, tum, ID) %>%
-#     summarise(
-#       n = n(),
-#       duration = sum(event_duration, na.rm = TRUE),
-#       lastevent_start = max(time)
-#     ) %>%
-#     mutate(mtbe = lastevent_start / n, mtoe = duration / n)
-#   
-#   
-#   tonnes_moved_fleet <- attributes %>%
-#     filter(!is.na(item_type) & key %like% 'cap.prod')  %>%
-#     group_by(modelname, scenario, sens_step, run_number, item_type) %>%
-#     summarise(tot_moved = max(value))
-#   
-#   
-#   run_summary <- status_by_fleet %>% ungroup() %>%
-#     select(modelname,
-#            scenario,
-#            sens_step,
-#            run_number,
-#            item_type,
-#            ID,
-#            duration) %>%
-#     pivot_wider(
-#       names_from = ID,
-#       values_from = duration,
-#       values_fill = 0
-#     ) %>%
-#     left_join(., tonnes_moved_fleet) %>%
-#     left_join(., eqnumbers)
-# }
-# 
+run_model <- function(modelname,
+                      sequence_desc,
+                      input_xl_file,
+                      input_xl_sheet,
+                      run_duration) {
+  
+  if (file.exists(paste0(modelname, "/_add_special_blocks.R"))) {
+    source(paste0(modelname, "/_add_special_blocks.R"))
+  }
+  model_path <- paste0(modelname, "/")
+  
+  sequence_desc <- paste0(model_path, sequence_desc, "/")
+  inputs <- read_excel(paste0(sequence_desc, input_xl_file), sheet = input_xl_sheet)
+  inputs <- inputs[!is.na(inputs$Seq), ]
+  assign("inputs",
+         inputs,
+         env = .GlobalEnv)
+  assign("modelname",modelname,env = .GlobalEnv)
+  runs <- nrow(inputs)
+  for (run_id in 1:runs) {
+    ##
+    # create sub directory for this run
+    ##
+    
+    print(paste0("run :", run_id, "  of :", runs))
+    assign("run_id",run_id,env=.GlobalEnv)
+    
+    run_dir <-
+      paste0(sequence_desc, "run_id_", sprintf("%03.0f", run_id), "/")
+    if (!dir.exists(run_dir)) {
+      dir.create(run_dir)
+    }
+    ##
+    # Build model code and save to file
+    ##
+    source(paste0(modelname, "/build.R"))
+    
+    code <- join_code(mod_df)
+    path <- paste0(run_dir, "code.R")
+    save_text_to_file(code, path)
+    ##
+    # Compile the model
+    ##
+    source(path)
+    ##
+    # Divert output to log file
+    log_file <- paste0(run_dir, "log_file.log")
+    con <- file(log_file)
+    sink(con, append = TRUE)
+    sink(con, append = TRUE, type = "message")
+    ##
+    # Run Model
+    env <- env %>% run(run_duration)
+    ##
+    # switch output back to module
+    ##
+    sink(type = "message")
+    sink()
+    close(con)
+    ##
+    # Extract attributes from "env"
+    ##
+    attributes <- get_mon_attributes(env)
+    write.csv(attributes, paste0(run_dir, "attributes_file.csv"))
+    eqtypes <-
+      mod_df %>% group_by(item) %>% summarise() %>% filter(str_length(item) >
+                                                             0)
+    for (eqtype in eqtypes$item) {
+      if (exists(paste0(eqtype, "_array"))) {
+        write.csv(get(paste0(eqtype, "_array")), paste0(eqtype, "_array.csv"))
+      } else {
+        print(paste0("Item array ", eqtype, "_array does not exist"))
+      }
+    }
+    # write.csv(bogger_array,paste0(run_dir, "bogger_array.csv"))
+    # write.csv(truck_array,paste0(run_dir, "truck_array.csv"))
+    # write.csv(conveyor_array,paste0(run_dir, "conveyor_array.csv"))
+  }
+}
