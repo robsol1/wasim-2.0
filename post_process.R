@@ -2,11 +2,10 @@
 
 
 source("fns.R")
-
 modelname="orepass"
-sequence_desc='initial suite'
-input_xl_file="inputs.xlsx"
-input_xl_sheet="inputs"
+sequence_desc='HighReliability'
+input_xl_file="Scenario_Inputs.xlsx"
+input_xl_sheet="HighReliability"
 
 ### Run to generate appropriate pointers
 sequence_desc <- paste0(paste0(modelname,'/',sequence_desc, "/"))

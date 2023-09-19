@@ -4,9 +4,14 @@ source("fns.R")
 
 
 modelname="orepass"
-sequence_desc='initial suite'
-input_xl_file="inputs.xlsx"
-input_xl_sheet="inputs"
+sequence_desc='HighReliability'
+input_xl_file="Scenario_Inputs.xlsx"
+input_xl_sheet="HighReliability"
+
+
+
+
+
 source(paste0(modelname,"/_add_special_blocks.R"))
 run_duration =7*24*3600
 
@@ -20,10 +25,12 @@ inputs <- read_excel(paste0(sequence_desc,input_xl_file),sheet=input_xl_sheet)
 inputs <- inputs[!is.na(inputs$Seq),]
 runs <- nrow(inputs)
 i=1
+runs=1
 for(run_id in 1:runs) {
   ##
   # create sub directory for this run
   ##
+  print(paste0("run :",run_id,"  of :",runs))
   run_dir <-
     paste0(sequence_desc, "run_id_", sprintf("%03.0f", run_id), "/")
   if (!dir.exists(run_dir)) {

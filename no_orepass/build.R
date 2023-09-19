@@ -214,6 +214,4 @@ mod_df <- create_close_trj(
 )
 
 
-plot_blocks(mod_df, height = 22, width = 32)
-
 #####################################################

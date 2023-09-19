@@ -27,8 +27,8 @@ sched_load_haul_dump <- function(sched_name,
               message=paste0("stocks current ", stockpiles[from_pile, varpointer_current_stocks]))
     sched_log(item=item, item_id=item_id,sched_name=sched_name,trj_step=trj_step, 
               message=paste0("stocks committed ", stockpiles[from_pile, varpointer_committed]))
-    av_stock <- stockpiles[from_pile, varpointer_current_stocks]
-    + stockpiles[from_pile, varpointer_committed]
+    av_stock <- stockpiles[from_pile, varpointer_current_stocks] + stockpiles[from_pile, varpointer_committed]
+    sched_log(item=item, item_id=item_id,sched_name=sched_name,trj_step=trj_step, message=paste0("av_stock ", av_stock))
     if (av_stock > unit_volume) {
       ret = 3
       sched_log(item=item, item_id=item_id,sched_name=sched_name,trj_step=trj_step, 
